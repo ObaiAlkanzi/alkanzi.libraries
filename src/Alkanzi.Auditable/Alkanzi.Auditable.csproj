@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <PackageId>Alkanzi.Auditable</PackageId>
+    <Version>1.0.1</Version>
+    <Authors>Obai Alkanzi</Authors>
+    <Description>A lightweight, interface-based audit-stamping contract (IAuditable) for tracking Created/Updated/Deleted metadata across any .NET entity, regardless of base class.</Description>
+    <PackageTags>audit;tracking;erp;dotnet;entity</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/ObaiAlkanzi/alkanzi.libraries</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/ObaiAlkanzi/alkanzi.libraries</PackageProjectUrl>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

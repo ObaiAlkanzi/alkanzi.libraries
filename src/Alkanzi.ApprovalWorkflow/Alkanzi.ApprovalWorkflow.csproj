@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>Alkanzi.ApprovalWorkflow</PackageId>
+    <Version>1.0.1</Version>
+    <Authors>Obai Alkanzi</Authors>
+    <Description>A generic multi-level approval workflow engine for .NET applications.</Description>
+    <PackageTags>workflow;approval;erp;dotnet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/ObaiAlkanzi/alkanzi.libraries</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/ObaiAlkanzi/alkanzi.libraries</PackageProjectUrl>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Alkanzi.Auditable\Alkanzi.Auditable.csproj" />
+  </ItemGroup>
+
+</Project>

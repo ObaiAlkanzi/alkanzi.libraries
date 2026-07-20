@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Alkanzi.ApprovalWorkflow/Alkanzi.ApprovalWorkflow.csproj" />
+    <Project Path="src/Alkanzi.Auditable/Alkanzi.Auditable.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Alkanzi.ApprovalWorkflow.Tests/Alkanzi.ApprovalWorkflow.Tests.csproj" />
+  </Folder>
+</Solution>
