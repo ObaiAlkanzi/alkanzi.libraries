@@ -6,20 +6,19 @@ namespace Alkanzi.ApprovalWorkflow.Tests
 {
     public class AuditableTests
     {
-        // NOTE: IAuditable's Mark* methods currently stamp DateTime.Now (local time),
-        // not DateTime.UtcNow. These tests bound against DateTime.Now to match that
-        // behaviour. If the stamps move to UTC, update these bounds too.
+        // IAuditable stamps UTC. Convert to a display timezone at the UI layer
+        // rather than storing local time — see the Alkanzi.Auditable README.
 
         [Fact]
         public void MarkCreated_StampsCreatorAndClearsFlags()
         {
             IAuditable entity = new ApprovalRequest { IS_UPDATED = true, IS_DELETED = true };
-            var before = DateTime.Now;
+            var before = DateTime.UtcNow;
 
             entity.MarkCreated(42);
 
             Assert.Equal(42, entity.CREATED_BY);
-            Assert.InRange(entity.CREATED_AT, before, DateTime.Now);
+            Assert.InRange(entity.CREATED_AT, before, DateTime.UtcNow);
             Assert.Equal(false, entity.IS_UPDATED);
             Assert.Equal(false, entity.IS_DELETED);
         }
@@ -28,26 +27,26 @@ namespace Alkanzi.ApprovalWorkflow.Tests
         public void MarkUpdated_StampsUpdaterAndSetsFlag()
         {
             IAuditable entity = new ApprovalRequest();
-            var before = DateTime.Now;
+            var before = DateTime.UtcNow;
 
             entity.MarkUpdated(7);
 
             Assert.Equal(true, entity.IS_UPDATED);
             Assert.Equal(7, entity.UPDATED_BY);
-            Assert.InRange(entity.UPDATED_AT!.Value, before, DateTime.Now);
+            Assert.InRange(entity.UPDATED_AT!.Value, before, DateTime.UtcNow);
         }
 
         [Fact]
         public void MarkDeleted_StampsDeleterAndSetsFlag()
         {
             IAuditable entity = new ApprovalRequest();
-            var before = DateTime.Now;
+            var before = DateTime.UtcNow;
 
             entity.MarkDeleted(3);
 
             Assert.Equal(true, entity.IS_DELETED);
             Assert.Equal(3, entity.DELETED_BY);
-            Assert.InRange(entity.DELETED_AT!.Value, before, DateTime.Now);
+            Assert.InRange(entity.DELETED_AT!.Value, before, DateTime.UtcNow);
         }
 
         [Fact]

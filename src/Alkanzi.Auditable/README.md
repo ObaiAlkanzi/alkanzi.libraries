@@ -43,6 +43,17 @@ auditable.MarkUpdated(7);
 auditable.MarkDeleted(3);
 ```
 
+## Timestamps and time zones
+
+`MarkCreated`, `MarkUpdated`, and `MarkDeleted` stamp **UTC** (`DateTime.UtcNow`). Store UTC and convert only when displaying:
+
+```csharp
+var dubai = TimeZoneInfo.FindSystemTimeZoneById("Arabian Standard Time");
+var local = TimeZoneInfo.ConvertTimeFromUtc(entity.CREATED_AT, dubai);
+```
+
+Avoid `DateTime.Now` for storage. It records the *server's* local time, so the same code writes different values on your machine than on a UTC-configured host (the default for Azure, AWS, and most containers), and DST shifts break ordering twice a year.
+
 ## Why an interface, not a base class?
 Your entities may already inherit from your own `Base.cs` or ORM base type. `IAuditable` works alongside that — just implement it, no multiple-inheritance conflicts.
 

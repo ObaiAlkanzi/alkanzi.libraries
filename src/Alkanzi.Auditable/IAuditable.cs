@@ -19,7 +19,7 @@ namespace Alkanzi.Auditable
         void MarkCreated(int userId)
         {
             CREATED_BY = userId;
-            CREATED_AT = DateTime.Now;
+            CREATED_AT = DateTime.UtcNow;
             IS_UPDATED = false;
             IS_DELETED = false;
         }
@@ -28,14 +28,14 @@ namespace Alkanzi.Auditable
         {
             IS_UPDATED = true;
             UPDATED_BY = userId;
-            UPDATED_AT = DateTime.Now;
+            UPDATED_AT = DateTime.UtcNow;
         }
 
         void MarkDeleted(int userId)
         {
             IS_DELETED = true;
             DELETED_BY = userId;
-            DELETED_AT = DateTime.Now;
+            DELETED_AT = DateTime.UtcNow;
         }
     }
 }
