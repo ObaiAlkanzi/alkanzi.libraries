@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <PackageId>Alkanzi.Auditable.EntityFrameworkCore</PackageId>
+    <Version>2.0.0</Version>
+    <Authors>Obai Alkanzi</Authors>
+    <Description>Entity Framework Core integration for Alkanzi.Auditable — a SaveChanges interceptor that stamps IAuditable entities automatically and turns deletes into soft deletes, plus global query filters that hide soft-deleted rows.</Description>
+    <PackageTags>audit;tracking;erp;dotnet;entity;efcore;entityframeworkcore;softdelete</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/ObaiAlkanzi/alkanzi.libraries</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/ObaiAlkanzi/alkanzi.libraries</PackageProjectUrl>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Alkanzi.Auditable\Alkanzi.Auditable.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <!-- 8.0.11 floor: earlier 8.x drags in Microsoft.Extensions.Caching.Memory 8.0.0 (GHSA-qj66-m88j-hmgj). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[8.0.11,11.0.0)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[10.0.0,11.0.0)" />
+  </ItemGroup>
+
+</Project>

@@ -2,8 +2,11 @@
   <Folder Name="/src/">
     <Project Path="src/Alkanzi.ApprovalWorkflow/Alkanzi.ApprovalWorkflow.csproj" />
     <Project Path="src/Alkanzi.Auditable/Alkanzi.Auditable.csproj" />
+    <Project Path="src/Alkanzi.Auditable.EntityFrameworkCore/Alkanzi.Auditable.EntityFrameworkCore.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Alkanzi.ApprovalWorkflow.Tests/Alkanzi.ApprovalWorkflow.Tests.csproj" />
+    <Project Path="tests/Alkanzi.Auditable.EntityFrameworkCore.Tests/Alkanzi.Auditable.EntityFrameworkCore.Tests.csproj" />
+    <Project Path="tests/Alkanzi.Auditable.EntityFrameworkCore.OracleTests/Alkanzi.Auditable.EntityFrameworkCore.OracleTests.csproj" />
   </Folder>
 </Solution>

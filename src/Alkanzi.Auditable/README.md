@@ -54,6 +54,10 @@ var local = TimeZoneInfo.ConvertTimeFromUtc(entity.CREATED_AT, dubai);
 
 Avoid `DateTime.Now` for storage. It records the *server's* local time, so the same code writes different values on your machine than on a UTC-configured host (the default for Azure, AWS, and most containers), and DST shifts break ordering twice a year.
 
+## Using Entity Framework Core?
+
+[`Alkanzi.Auditable.EntityFrameworkCore`](https://www.nuget.org/packages/Alkanzi.Auditable.EntityFrameworkCore) does the stamping for you — a SaveChanges interceptor calls `MarkCreated`/`MarkUpdated`/`MarkDeleted` on tracked entities, turns `Remove` into a soft delete, and hides soft-deleted rows behind global query filters.
+
 ## Why an interface, not a base class?
 Your entities may already inherit from your own `Base.cs` or ORM base type. `IAuditable` works alongside that — just implement it, no multiple-inheritance conflicts.
 
