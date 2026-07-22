@@ -85,7 +85,7 @@ public class OracleSoftDeleteTests(OracleFixture fixture)
         {
             context.Budgets.Add(new Budget { Code = "LEGACY", Name = "Legacy" });
             await context.SaveChangesAsync();
-            await context.Database.ExecuteSqlRawAsync("UPDATE BUDGETS SET IS_DELETED = NULL");
+            await context.Database.ExecuteSqlRawAsync($"UPDATE {OracleFixture.TableName} SET IS_DELETED = NULL");
         }
 
         // The point of `!= true` over `== false`: Oracle three-valued logic must

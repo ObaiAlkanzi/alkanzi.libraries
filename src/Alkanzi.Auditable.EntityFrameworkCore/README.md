@@ -107,6 +107,43 @@ modelBuilder.Entity<Budget>().HasQueryFilter(b => b.TenantId == tenantId && b.IS
 
 **Timestamps are UTC.** Stamping uses `DateTime.UtcNow`, from `IAuditable` itself. Convert only when displaying.
 
+## Resolving entities by table name
+
+When a table name lives in *data* rather than in code — a workflow row naming the table its transactions sit in — `IEntityResolver` turns that string into a row, using EF's model rather than a hand-maintained registry:
+
+```csharp
+services.AddEntityResolver<AppDbContext>();
+
+var row = await resolver.FindAsync("FM_SOME_TABLE", transId);   // object?, or null
+var clrType = resolver.GetEntityType("FM_SOME_TABLE").ClrType;
+```
+
+Matching is case-insensitive and accepts `TABLE` or `SCHEMA.TABLE`. Key values are coerced to the declared key type — passing an `int` where the key is `long` or `decimal` still finds the row, which matters on Oracle where `NUMBER` maps to either depending on precision.
+
+Soft-deleted rows are excluded. `FindIncludingDeletedAsync` returns them, and has to issue its own `IgnoreQueryFilters()` query to do it: `Find` applies query filters to the SELECT it makes, so there is no way to opt out through `Find` itself.
+
+### Dispatching on a document type
+
+If your registry table has a document-type code and a table name, implement `ITransactionMenu` on it and `ApprovalEngine<TMenu>` will chain the two lookups:
+
+```csharp
+public class FM_TRANSACTION_MENU : BASE, ITransactionMenu   // your entity, your project
+{
+    public string DOC_TYPE { get; set; } = "";
+    public string TABLE_NAME { get; set; } = "";
+    // ... the rest of your columns are none of this package's business
+}
+```
+
+```csharp
+services.AddApprovalEngine<AppDbContext, FM_TRANSACTION_MENU>();
+
+var menu = await engine.GetMenuAsync("PO");                             // the registry row
+var txn  = await engine.GetTransactionByDocTypeAsync("PO", transId);    // the transaction
+```
+
+Only `DOC_TYPE` and `TABLE_NAME` are read, so the rest of your schema stays in your own solution. A document type with two registry rows raises rather than picking one, since silently choosing would route approvals by whichever row the database returned first.
+
 ## Database providers
 
 The package is provider-agnostic. It emits no SQL of its own: the interceptor only manipulates the change tracker, and `ApplyAuditableQueryFilters` builds a LINQ expression that your provider translates.

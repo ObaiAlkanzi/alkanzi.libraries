@@ -9,7 +9,7 @@ namespace Alkanzi.Auditable.EntityFrameworkCore.OracleTests;
 
 public class Budget : IAuditable
 {
-    public int Id { get; set; }
+    public int ID { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
 
@@ -48,7 +48,7 @@ public sealed class OracleDbContext(
         modelBuilder.Entity<Budget>(entity =>
         {
             entity.ToTable(OracleFixture.TableName);
-            entity.Property(b => b.Id).HasColumnName("ID");
+            entity.Property(b => b.ID).HasColumnName("ID");
             entity.Property(b => b.Code).HasColumnName("CODE").HasMaxLength(50);
             entity.Property(b => b.Name).HasColumnName("NAME").HasMaxLength(200);
         });
@@ -156,6 +156,23 @@ public sealed class OracleFixture : IAsyncLifetime
         return new OracleDbContext(
             builder.Options,
             new AuditableSaveChangesInterceptor(UserProvider, options ?? new AuditableOptions()));
+    }
+
+    /// <summary>
+    /// Opens a read-only context over the ERP's own tables. Never passed to the
+    /// schema-creation path, so nothing here can create or drop a real table.
+    /// </summary>
+    public ErpReadContext CreateErpContext()
+    {
+        if (_connectionString is null)
+        {
+            throw new InvalidOperationException("No Oracle instance is configured.");
+        }
+
+        var builder = new DbContextOptionsBuilder<ErpReadContext>()
+            .UseOracle(_connectionString, o => o.UseOracleSQLCompatibility(SqlCompatibility));
+
+        return new ErpReadContext(builder.Options);
     }
 
     /// <summary>Clears state between tests sharing the instance.</summary>

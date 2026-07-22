@@ -22,8 +22,8 @@ Alkanzi.Libraries.slnx
 │  └─ Alkanzi.ApprovalWorkflow/                   # workflow engine (-> Auditable)
 └─ tests/
    ├─ Alkanzi.ApprovalWorkflow.Tests/                    # xUnit, covers Auditable + ApprovalWorkflow
-   ├─ Alkanzi.Auditable.EntityFrameworkCore.Tests/       # xUnit against in-memory SQLite (fast)
-   └─ Alkanzi.Auditable.EntityFrameworkCore.OracleTests/ # Testcontainers, real Oracle (needs Docker)
+   ├─ Alkanzi.Auditable.EntityFrameworkCore.SqliteTests/ # xUnit against in-memory SQLite (fast, seeded)
+   └─ Alkanzi.Auditable.EntityFrameworkCore.OracleTests/ # Testcontainers or a live ERP (needs Docker)
 ```
 
 ## Oracle integration tests

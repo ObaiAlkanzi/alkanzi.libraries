@@ -1,6 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
-namespace Alkanzi.Auditable.EntityFrameworkCore.Tests;
+namespace Alkanzi.Auditable.EntityFrameworkCore.SqliteTests;
 
 public class SoftDeleteTests
 {

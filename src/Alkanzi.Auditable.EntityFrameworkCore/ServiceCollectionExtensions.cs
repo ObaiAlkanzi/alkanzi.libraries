@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Alkanzi.Auditable.EntityFrameworkCore;
@@ -44,5 +45,60 @@ public static class ServiceCollectionExtensions
             options));
 
         return services;
+    }
+
+    /// <summary>
+    /// Registers <see cref="IEntityResolver"/> over <typeparamref name="TContext"/>.
+    /// </summary>
+    /// <typeparam name="TContext">The context whose model is searched.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The same <paramref name="services"/>, for chaining.</returns>
+    /// <remarks>
+    /// Takes the context type explicitly because <c>AddDbContext&lt;TContext&gt;</c>
+    /// registers only <typeparamref name="TContext"/>, never the
+    /// <see cref="DbContext"/> base — so the resolver cannot ask for it directly.
+    /// </remarks>
+    public static IServiceCollection AddEntityResolver<TContext>(this IServiceCollection services)
+        where TContext : DbContext
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        return services.AddScoped<IEntityResolver>(sp => new EntityResolver(sp.GetRequiredService<TContext>()));
+    }
+
+    /// <summary>
+    /// Registers <see cref="IApprovalEngine{TMenu}"/> over
+    /// <typeparamref name="TContext"/>.
+    /// </summary>
+    /// <typeparam name="TContext">The context mapping the menu and transaction tables.</typeparam>
+    /// <typeparam name="TMenu">Your document-type registry entity.</typeparam>
+    /// <typeparam name="TCompany">
+    /// Your <see cref="ICompanyContext"/> implementation, supplying the tenant
+    /// the lookup is scoped to.
+    /// </typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The same <paramref name="services"/>, for chaining.</returns>
+    /// <remarks>
+    /// Uses a registered <see cref="IEntityResolver"/> if there is one, so a
+    /// custom implementation still wins, and otherwise builds its own. That
+    /// makes this independent of whether
+    /// <see cref="AddEntityResolver{TContext}"/> was called, and of the order.
+    /// </remarks>
+    public static IServiceCollection AddApprovalEngine<TContext, TMenu, TCompany>(this IServiceCollection services)
+        where TContext : DbContext
+        where TMenu : class, ITransactionMenu
+        where TCompany : class, ICompanyContext
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddScoped<ICompanyContext, TCompany>();
+
+        return services.AddScoped<IApprovalEngine<TMenu>>(sp =>
+        {
+            var context = sp.GetRequiredService<TContext>();
+            var resolver = sp.GetService<IEntityResolver>() ?? new EntityResolver(context);
+
+            return new ApprovalEngine<TMenu>(context, resolver, sp.GetRequiredService<ICompanyContext>());
+        });
     }
 }

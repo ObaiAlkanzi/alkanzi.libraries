@@ -1,6 +1,6 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
-namespace Alkanzi.Auditable.EntityFrameworkCore.Tests;
+namespace Alkanzi.Auditable.EntityFrameworkCore.SqliteTests;
 
 public class AuditableInterceptorTests
 {
@@ -37,7 +37,7 @@ public class AuditableInterceptorTests
         context.Budgets.Add(budget);
         context.SaveChanges();
 
-        // Within a minute of UtcNow — would fail on a non-UTC host if the
+        // Within a minute of UtcNow â€” would fail on a non-UTC host if the
         // library ever regressed to DateTime.Now.
         Assert.True((DateTime.UtcNow - budget.CREATED_AT).Duration() < TimeSpan.FromMinutes(1));
     }

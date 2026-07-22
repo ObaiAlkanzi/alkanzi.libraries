@@ -6,6 +6,7 @@ namespace Alkanzi.Auditable
 {
     public interface IAuditable
     {
+       
         bool? IS_UPDATED { get; set; }
         bool? IS_DELETED { get; set; }
         int CREATED_BY { get; set; }
