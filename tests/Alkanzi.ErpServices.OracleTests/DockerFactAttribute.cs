@@ -1,0 +1,26 @@
+namespace Alkanzi.ErpServices.OracleTests;
+
+/// <summary>
+/// A <see cref="FactAttribute"/> that skips instead of failing unless an Oracle
+/// connection is configured through <see cref="OracleConnectionSource"/>.
+/// </summary>
+/// <remarks>
+/// No container fallback, unlike the EF Core package's Oracle tests: these run
+/// against the real ERP's own tables and data, which a throwaway container does
+/// not have. A machine with no ERP connection has verified nothing here, so the
+/// honest result is a skip.
+/// </remarks>
+public sealed class DockerFactAttribute : FactAttribute
+{
+    public DockerFactAttribute()
+    {
+        if (OracleConnectionSource.IsConfigured)
+        {
+            return;
+        }
+
+        Skip = "No ERP connection configured — supply one via " +
+               $"`dotnet user-secrets set \"{OracleConnectionSource.SecretKey}\" \"...\"` " +
+               $"or the {OracleConnectionSource.EnvironmentVariable} environment variable.";
+    }
+}

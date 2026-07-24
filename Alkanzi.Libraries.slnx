@@ -3,10 +3,12 @@
     <Project Path="src/Alkanzi.ApprovalWorkflow/Alkanzi.ApprovalWorkflow.csproj" />
     <Project Path="src/Alkanzi.Auditable/Alkanzi.Auditable.csproj" />
     <Project Path="src/Alkanzi.Auditable.EntityFrameworkCore/Alkanzi.Auditable.EntityFrameworkCore.csproj" />
+    <Project Path="src/Alkanzi.ErpServices/Alkanzi.ErpServices.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Alkanzi.ApprovalWorkflow.Tests/Alkanzi.ApprovalWorkflow.Tests.csproj" />
     <Project Path="tests/Alkanzi.Auditable.EntityFrameworkCore.SqliteTests/Alkanzi.Auditable.EntityFrameworkCore.SqliteTests.csproj" />
     <Project Path="tests/Alkanzi.Auditable.EntityFrameworkCore.OracleTests/Alkanzi.Auditable.EntityFrameworkCore.OracleTests.csproj" />
+    <Project Path="tests/Alkanzi.ErpServices.OracleTests/Alkanzi.ErpServices.OracleTests.csproj" />
   </Folder>
 </Solution>

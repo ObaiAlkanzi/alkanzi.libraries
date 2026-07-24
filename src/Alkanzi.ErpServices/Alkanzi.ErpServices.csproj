@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Maps a specific ERP's tables, so it is an application library rather
+         than a NuGet package — no doc file, hence no per-column XML-doc noise. -->
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Alkanzi.Auditable\Alkanzi.Auditable.csproj" />
+    <ProjectReference Include="..\Alkanzi.Auditable.EntityFrameworkCore\Alkanzi.Auditable.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+  <!-- EF Core types (DbContext, ModelBuilder) and the DI abstractions are used
+       directly here. They flow transitively from the referenced package, but
+       are pinned explicitly so this project's target frameworks and versions
+       stay aligned with it rather than drifting on a transitive bump. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[8.0.11,11.0.0)" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="[8.0.11,11.0.0)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[10.0.0,11.0.0)" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="[10.0.0,11.0.0)" />
+  </ItemGroup>
+
+</Project>

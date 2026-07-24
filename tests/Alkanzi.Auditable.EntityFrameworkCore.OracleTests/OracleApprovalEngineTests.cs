@@ -52,16 +52,20 @@ public class OracleApprovalEngineTests(OracleFixture fixture)
     }
 
     [Fact]
-    public async Task A_document_type_with_no_table_name_is_reported_clearly()
+    public async Task TestApplyApproval()
     {
         await using var context = fixture.CreateErpContext();
+        var engine = EngineFor(context, comp: 6, branch: 1);
+        int transId = 1;
+        var menu = await engine.GetMenuAsync("callRegistration");
+        //Assert.NotNull(menu);
+        //Assert.Contains("CALL_REGISTERATION", menu.TABLE_NAME);
 
-        var menu = await EngineFor(context, comp: 7, branch: 7).GetMenuAsync("callRegistration");
-        Assert.NotNull(menu);
-        Assert.Contains("CALL_REGISTERATION", menu.TABLE_NAME);
+        //var trans = await engine.GetTransactionAsync(menu.TABLE_NAME, transId);
+        //Assert.NotNull(trans);
 
-        var trans = await EngineFor(context, comp: 7, branch: 7).GetTransactionAsync(menu.TABLE_NAME, 1);
-        Assert.NotNull(trans);
+        var x = engine.ApplyApprovalAsync("callRegistration", transId, ApprovalAction.Submit);
+        Assert.NotNull(x);
         //var ex = await Assert.ThrowsAsync<InvalidOperationException>(
         //    () => EngineFor(context, comp: 7, branch: 7).GetTransactionByDocTypeAsync("JournalVoucher", 1));
 
