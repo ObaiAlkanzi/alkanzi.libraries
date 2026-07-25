@@ -24,8 +24,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Alkanzi.Auditable\Alkanzi.Auditable.csproj" />
-    <ProjectReference Include="..\..\src\Alkanzi.Auditable.EntityFrameworkCore\Alkanzi.Auditable.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\Alkanzi.ErpServices\Alkanzi.ErpServices.csproj" />
   </ItemGroup>
 

@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Multi-target net8.0;net10.0, net8 first: net8 is the framework the widest
+         range of tooling loads without a preview/newer install, so listing it
+         first makes it the target the IDE analyses by default. The app and the
+         net10 test project still get net10. -->
     <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -10,23 +14,20 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Alkanzi.Auditable\Alkanzi.Auditable.csproj" />
-    <ProjectReference Include="..\Alkanzi.Auditable.EntityFrameworkCore\Alkanzi.Auditable.EntityFrameworkCore.csproj" />
-  </ItemGroup>
-
-  <!-- EF Core types (DbContext, ModelBuilder) and the DI abstractions are used
-       directly here. They flow transitively from the referenced package, but
-       are pinned explicitly so this project's target frameworks and versions
-       stay aligned with it rather than drifting on a transitive bump. -->
+  <!-- EF Core + the Oracle provider, pinned per framework. The Oracle ADO.NET
+       types the procedure wrappers use (OracleCommand, OracleDbType,
+       OracleRefCursor, OracleDecimal) exist in both provider majors, so the code
+       compiles unchanged against each. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[8.0.11,11.0.0)" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="[8.0.11,11.0.0)" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[8.0.11,9.0.0)" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="[8.0.11,9.0.0)" />
+    <PackageReference Include="Oracle.EntityFrameworkCore" Version="8.23.90" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[10.0.0,11.0.0)" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="[10.0.0,11.0.0)" />
+    <PackageReference Include="Oracle.EntityFrameworkCore" Version="10.23.26200" />
   </ItemGroup>
 
 </Project>

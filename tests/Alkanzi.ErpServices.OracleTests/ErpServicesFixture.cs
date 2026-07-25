@@ -1,11 +1,10 @@
-using Alkanzi.Auditable.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Oracle.EntityFrameworkCore.Infrastructure;
 
 namespace Alkanzi.ErpServices.OracleTests;
 
 /// <summary>Fixed acting user for the tests.</summary>
-public sealed class StubUserProvider : IAuditUserProvider
+public sealed class StubUserProvider : IErpUserProvider
 {
     public int? UserId { get; set; } = 42;
 
@@ -13,7 +12,7 @@ public sealed class StubUserProvider : IAuditUserProvider
 }
 
 /// <summary>Fixed tenant for a test.</summary>
-public sealed class FixedCompany(int org, int comp, int? branch) : ICompanyContext
+public sealed class FixedCompany(int org, int comp, int? branch) : IErpCompanyContext
 {
     public int ORG_ID { get; } = org;
     public int COMP_ID { get; } = comp;
@@ -21,15 +20,13 @@ public sealed class FixedCompany(int org, int comp, int? branch) : ICompanyConte
 }
 
 /// <summary>
-/// Builds <see cref="ErpDbContext"/> over the real ERP, and the approval service
+/// Builds <see cref="ErpDbContext"/> over the real ERP, and the approval engine
 /// on top of it, for a given tenant.
 /// </summary>
 /// <remarks>
-/// Read-mostly: the only writes come from the service's Submit/Approve/Reject/
-/// Rework, and every test that calls them wraps the work in a transaction it
-/// rolls back, so nothing persists to the ERP. Unlike the EF Core package's
-/// fixture this one creates no tables — it never owns a scratch table, only
-/// queries and (transiently) updates the ERP's own.
+/// Read-mostly: the only writes come from the engine's approval transitions, and
+/// every test that triggers one wraps the work in a transaction it rolls back,
+/// so nothing persists to the ERP.
 /// </remarks>
 public sealed class ErpServicesFixture
 {
@@ -43,7 +40,7 @@ public sealed class ErpServicesFixture
 
     /// <summary>
     /// Creates a context with the audit interceptor attached, so a save stamps
-    /// <c>UPDATED_BY</c>/<c>UPDATED_AT</c> the same way a real consumer's would.
+    /// <c>UPDATED_BY</c>/<c>UPDATED_AT</c> the way a real consumer's would.
     /// </summary>
     public ErpDbContext CreateContext()
     {
@@ -54,17 +51,21 @@ public sealed class ErpServicesFixture
             .UseOracle(connectionString, o => o.UseOracleSQLCompatibility(SqlCompatibility))
             .Options;
 
-        var interceptor = new AuditableSaveChangesInterceptor(UserProvider, new AuditableOptions());
-
-        return new ErpDbContext(options, interceptor);
+        return new ErpDbContext(options, new ErpAuditSaveChangesInterceptor(UserProvider));
     }
 
-    /// <summary>Builds the service over a context, scoped to a tenant.</summary>
-    public static IErpApprovalService ServiceFor(ErpDbContext context, int org, int comp, int? branch)
-    {
-        var engine = new ApprovalEngine<FM_TRANSACTION_MENU>(
-            context, new EntityResolver(context), new FixedCompany(org, comp, branch));
+    /// <summary>Builds the engine over a context, scoped to a tenant.</summary>
+    public static IErpApprovalEngine EngineFor(ErpDbContext context, int org, int comp, int? branch)
+        => new ErpApprovalEngine(context, new FixedCompany(org, comp, branch));
+}
 
-        return new ErpApprovalService(engine);
-    }
+/// <summary>
+/// Serialises the Oracle test classes and shares one fixture. Without it xUnit
+/// runs the classes in parallel, and concurrent connections make the REF CURSOR
+/// reads flaky.
+/// </summary>
+[CollectionDefinition(Name)]
+public sealed class ErpOracleCollection : ICollectionFixture<ErpServicesFixture>
+{
+    public const string Name = "ErpOracle";
 }

@@ -1,27 +1,24 @@
-using Alkanzi.Auditable.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Alkanzi.ErpServices;
 
 /// <summary>
-/// A context over the real ERP tables the approval services touch.
+/// A context over the real ERP tables the services touch.
 /// </summary>
 /// <remarks>
-/// Maps only what the approval path needs — the document-type registry and the
-/// transaction headers it dispatches to. Applies the auditable query filters so
-/// soft-deleted transactions are hidden, and attaches the audit interceptor when
-/// one is supplied so approvals stamp <c>UPDATED_BY</c>/<c>UPDATED_AT</c>. The
-/// interceptor is optional: read-only callers can leave it null.
+/// Maps the document-type registry and the transaction headers dispatched to,
+/// hides soft-deleted rows with its own query filters, and attaches the
+/// project's audit interceptor when one is supplied. Self-contained: nothing
+/// here comes from an external auditing library.
 /// </remarks>
 public class ErpDbContext : DbContext
 {
-    private readonly ISaveChangesInterceptor? _auditInterceptor;
+    private readonly ErpAuditSaveChangesInterceptor? _auditInterceptor;
 
     /// <summary>Creates the context, optionally attaching the audit interceptor.</summary>
     public ErpDbContext(
         DbContextOptions<ErpDbContext> options,
-        AuditableSaveChangesInterceptor? auditInterceptor = null)
+        ErpAuditSaveChangesInterceptor? auditInterceptor = null)
         : base(options)
         => _auditInterceptor = auditInterceptor;
 
@@ -67,6 +64,10 @@ public class ErpDbContext : DbContext
             entity.HasKey(e => e.ID);
             entity.ToTable("FM_JOURNAL_HDR");
             entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedNever();
+
+            // Not equality with false: a null IS_DELETED (rows predating the
+            // audit columns) must stay visible, and only an explicit true hides.
+            entity.HasQueryFilter(e => e.IS_DELETED != true);
         });
 
         modelBuilder.Entity<CALL_REGISTERATION>(entity =>
@@ -74,10 +75,8 @@ public class ErpDbContext : DbContext
             entity.HasKey(e => e.ID);
             entity.ToTable("CALL_REGISTERATION");
             entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedNever();
-        });
 
-        // Hides soft-deleted rows from every query the services issue, the same
-        // way the library gives consumers.
-        modelBuilder.ApplyAuditableQueryFilters();
+            entity.HasQueryFilter(e => e.IS_DELETED != true);
+        });
     }
 }
