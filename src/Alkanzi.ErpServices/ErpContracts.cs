@@ -29,11 +29,37 @@ public interface IErpAuditable
 
     /// <summary>When the row was soft-deleted (UTC).</summary>
     DateTime? DELETED_AT { get; set; }
+
+    /// <summary>Stamps the row as newly created by <paramref name="userId"/> (UTC now).</summary>
+    void MarkCreated(int userId)
+    {
+        CREATED_BY = userId;
+        CREATED_AT = DateTime.UtcNow;
+        IS_UPDATED = false;
+        IS_DELETED = false;
+    }
+
+    /// <summary>Stamps the row as updated by <paramref name="userId"/> (UTC now).</summary>
+    void MarkUpdated(int userId)
+    {
+        UPDATED_BY = userId;
+        UPDATED_AT = DateTime.UtcNow;
+        IS_UPDATED = true;
+    }
+
+    /// <summary>Marks the row soft-deleted by <paramref name="userId"/> (UTC now).</summary>
+    void MarkDeleted(int userId)
+    {
+        DELETED_BY = userId;
+        DELETED_AT = DateTime.UtcNow;
+        IS_DELETED = true;
+    }
 }
 
 /// <summary>A transaction row that moves through approval.</summary>
 public interface IErpApprovable
 {
+    public int? WORKFLOW_ID { get; set; }
     /// <summary>Where the row stands in approval.</summary>
     int APPROVE_STATUS { get; set; }
 
@@ -42,6 +68,26 @@ public interface IErpApprovable
 
     /// <summary>Digital signature captured on approval, if any.</summary>
     string? DIGIT_SIGNATURE { get; set; }
+
+    /// <summary>The document date, passed to the approval procedure as <c>TRANS_DOC_DATE</c>.</summary>
+    DateTime? DOC_DATE { get; set; }
+}
+
+/// <summary>
+/// A transaction row that carries its own tenant columns. When a row implements
+/// this, the approval engine takes <c>ORG_ID</c> / <c>COMP_ID</c> / <c>BRANCH_ID</c>
+/// for the approval log from the row itself (what <c>GetTransactionAsync</c> loads).
+/// </summary>
+public interface IErpTenantScoped
+{
+    /// <summary>Organisation the transaction belongs to.</summary>
+    int ORG_ID { get; }
+
+    /// <summary>Company the transaction belongs to.</summary>
+    int COMP_ID { get; }
+
+    /// <summary>Branch the transaction belongs to.</summary>
+    int BRANCH_ID { get; }
 }
 
 /// <summary>
@@ -81,19 +127,6 @@ public interface IErpUserProvider
 {
     /// <summary>Current user id, or <see langword="null"/> if none.</summary>
     int? GetCurrentUserId();
-}
-
-/// <summary>Supplies the tenant approvals are scoped to.</summary>
-public interface IErpCompanyContext
-{
-    /// <summary>Current organisation id.</summary>
-    int ORG_ID { get; }
-
-    /// <summary>Current company id.</summary>
-    int COMP_ID { get; }
-
-    /// <summary>Current branch id, or <see langword="null"/> to leave the lookup unscoped by branch.</summary>
-    int? BRANCH_ID { get; }
 }
 
 /// <summary>

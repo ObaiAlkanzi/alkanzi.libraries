@@ -19,8 +19,31 @@ public sealed class DockerFactAttribute : FactAttribute
             return;
         }
 
-        Skip = "No ERP connection configured — supply one via " +
-               $"`dotnet user-secrets set \"{OracleConnectionSource.SecretKey}\" \"...\"` " +
-               $"or the {OracleConnectionSource.EnvironmentVariable} environment variable.";
+        Skip = SkipReason;
+    }
+
+    /// <summary>The reason a live-ERP test skips when no connection is configured.</summary>
+    internal static string SkipReason =>
+        "No ERP connection configured — supply one via " +
+        $"`dotnet user-secrets set \"{OracleConnectionSource.SecretKey}\" \"...\"` " +
+        $"or the {OracleConnectionSource.EnvironmentVariable} environment variable.";
+}
+
+/// <summary>
+/// A <see cref="TheoryAttribute"/> that skips instead of failing unless an Oracle
+/// connection is configured — the data-driven counterpart of
+/// <see cref="DockerFactAttribute"/>, for covering several document types with one
+/// test body.
+/// </summary>
+public sealed class DockerTheoryAttribute : TheoryAttribute
+{
+    public DockerTheoryAttribute()
+    {
+        if (OracleConnectionSource.IsConfigured)
+        {
+            return;
+        }
+
+        Skip = DockerFactAttribute.SkipReason;
     }
 }

@@ -34,13 +34,14 @@ Monorepo of .NET libraries for the Fakhruddin ERP (Oracle 19c).
 - `src/Alkanzi.ApprovalWorkflow` — workflow engine.
 - `src/Alkanzi.ErpServices` — **standalone** ERP-specific layer (its own approval
   engine, audit interceptor, contracts; no dependency on the Auditable packages).
-  net10.0 only, `IsPackable=false`, references the Oracle provider directly.
+  Multi-targets net8.0;net10.0, published as a NuGet package, references the
+  Oracle provider directly.
 
 Tests:
 - `tests/Alkanzi.Auditable.EntityFrameworkCore.SqliteTests` — fast, in-memory.
 - `tests/Alkanzi.Auditable.EntityFrameworkCore.OracleTests` — live/containerised
   Oracle.
-- `tests/Alkanzi.ErpServices.OracleTests` — live ERP; the two classes share one
+- `tests/Alkanzi.ErpServices.OracleTests` — live ERP; its classes share one
   xUnit collection so they run sequentially.
 
 # Oracle tests

@@ -11,14 +11,6 @@ public sealed class StubUserProvider : IErpUserProvider
     public int? GetCurrentUserId() => UserId;
 }
 
-/// <summary>Fixed tenant for a test.</summary>
-public sealed class FixedCompany(int org, int comp, int? branch) : IErpCompanyContext
-{
-    public int ORG_ID { get; } = org;
-    public int COMP_ID { get; } = comp;
-    public int? BRANCH_ID { get; } = branch;
-}
-
 /// <summary>
 /// Builds <see cref="ErpDbContext"/> over the real ERP, and the approval engine
 /// on top of it, for a given tenant.
@@ -54,9 +46,12 @@ public sealed class ErpServicesFixture
         return new ErpDbContext(options, new ErpAuditSaveChangesInterceptor(UserProvider));
     }
 
-    /// <summary>Builds the engine over a context, scoped to a tenant.</summary>
+    /// <summary>
+    /// Builds the engine over a context, with a stub acting user so level
+    /// authorization has a real <c>usr</c>. Tenant comes from the row, not a context.
+    /// </summary>
     public static IErpApprovalEngine EngineFor(ErpDbContext context, int org, int comp, int? branch)
-        => new ErpApprovalEngine(context, new FixedCompany(org, comp, branch));
+        => new ErpApprovalEngine(context, userProvider: new StubUserProvider());
 }
 
 /// <summary>

@@ -5,7 +5,7 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <PackageId>Alkanzi.Auditable.EntityFrameworkCore</PackageId>
-    <Version>2.0.0</Version>
+    <Version>2.1.0</Version>
     <Authors>Obai Alkanzi</Authors>
     <Description>Entity Framework Core integration for Alkanzi.Auditable — a SaveChanges interceptor that stamps IAuditable entities automatically and turns deletes into soft deletes, plus global query filters that hide soft-deleted rows.</Description>
     <PackageTags>audit;tracking;erp;dotnet;entity;efcore;entityframeworkcore;softdelete</PackageTags>

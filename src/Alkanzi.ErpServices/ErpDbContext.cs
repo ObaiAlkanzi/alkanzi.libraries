@@ -31,6 +31,18 @@ public class ErpDbContext : DbContext
     /// <summary>Call registration headers.</summary>
     public DbSet<CALL_REGISTERATION> CallRegistrations => Set<CALL_REGISTERATION>();
 
+    /// <summary>Workflow definitions (forms).</summary>
+    public DbSet<SM_WORKFLOW_FORMS> WorkflowForms => Set<SM_WORKFLOW_FORMS>();
+
+    /// <summary>Levels of the workflow forms.</summary>
+    public DbSet<SM_WORKFLOW_FORM_LEVELS> WorkflowFormLevels => Set<SM_WORKFLOW_FORM_LEVELS>();
+
+    /// <summary>Approval-log headers: one per (document type, transaction).</summary>
+    public DbSet<SM_APPROVAL_LOGS_HEADER> ApprovalLogHeaders => Set<SM_APPROVAL_LOGS_HEADER>();
+
+    /// <summary>Approval-log detail entries: one per approval action.</summary>
+    public DbSet<SM_APPROVAL_LOGS_DETAIL> ApprovalLogDetails => Set<SM_APPROVAL_LOGS_DETAIL>();
+
     /// <inheritdoc />
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -75,6 +87,46 @@ public class ErpDbContext : DbContext
             entity.HasKey(e => e.ID);
             entity.ToTable("CALL_REGISTERATION");
             entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedNever();
+
+            entity.HasQueryFilter(e => e.IS_DELETED != true);
+        });
+
+        modelBuilder.Entity<SM_WORKFLOW_FORMS>(entity =>
+        {
+            entity.HasKey(e => e.ID);
+            entity.ToTable("SM_WORKFLOW_FORMS");
+            entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedNever();
+
+            entity.HasQueryFilter(e => e.IS_DELETED != true);
+        });
+
+        modelBuilder.Entity<SM_WORKFLOW_FORM_LEVELS>(entity =>
+        {
+            entity.HasKey(e => e.ID);
+            entity.ToTable("SM_WORKFLOW_FORM_LEVELS");
+            entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedNever();
+
+            entity.HasQueryFilter(e => e.IS_DELETED != true);
+        });
+
+        // The log tables are inserted into (unlike the others, which are only
+        // read or updated in place), and a detail row needs its header's key
+        // right after the header is saved — so ID is store-generated here, not
+        // ValueGeneratedNever. Assumes the columns are Oracle identity columns.
+        modelBuilder.Entity<SM_APPROVAL_LOGS_HEADER>(entity =>
+        {
+            entity.HasKey(e => e.ID);
+            entity.ToTable("SM_APPROVAL_LOGS_HEADER");
+            entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedOnAdd();
+
+            entity.HasQueryFilter(e => e.IS_DELETED != true);
+        });
+
+        modelBuilder.Entity<SM_APPROVAL_LOGS_DETAIL>(entity =>
+        {
+            entity.HasKey(e => e.ID);
+            entity.ToTable("SM_APPROVAL_LOGS_DETAIL");
+            entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedOnAdd();
 
             entity.HasQueryFilter(e => e.IS_DELETED != true);
         });
