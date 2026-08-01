@@ -51,15 +51,9 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
 
         //var after = await engine.SubmitAsync(DocType, TransId);
        //var result = await engine.ApplyApprovalAsync(DocType, TransId, ApprovalAction.Submit,remarks:"test Submit 1",sgId : 1);
-       var result = await engine.ApplyApprovalAsync(DocType, TransId, ApprovalAction.Rework,0,remarks:"test Submit 1",sgId : 1);
+       var result = await engine.ApplyApprovalAsync(DocType, TransId, ApprovalAction.Submit,0,remarks:"test Submit 1",sgId : 1);
         Assert.NotNull(result);
-        Assert.Equal((int)ApprovalAction.Rework, result.Row!.APPROVE_STATUS);
-        //Assert.Equal((int)ApprovalAction.Submit, after.APPROVE_STATUS);
-        //Assert.Equal(startLevel + 1, after.APPROVE_LEVEL);
-
-        // Deliberately COMMIT (not roll back) so the transaction persists for
-        // inspection. This writes to the ERP (PMSDEV) — unlike every other test
-        // here, which rolls back. Revert to RollbackAsync when done tracking.
+        Assert.Equal((int)ApprovalAction.Approve, result.Row!.APPROVE_STATUS); 
         await transaction.CommitAsync();
     }
 

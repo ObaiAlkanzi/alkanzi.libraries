@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Oracle.EntityFrameworkCore.Infrastructure;
 
 namespace Alkanzi.ErpServices;
@@ -72,6 +73,28 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Registers <see cref="IErpApprovalDashboardService"/> — reads approval rows
+    /// across the document types a user has access to, plus the department-employee
+    /// panel (<c>PANEL.DEPARTMENT_EMPLOYEES</c>), over <see cref="ErpDbContext"/>.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <returns>The same <paramref name="services"/>, for chaining.</returns>
+    /// <remarks>
+    /// Self-provisions <see cref="IErpProcedureService"/> (the panel runs a stored
+    /// procedure through it), so a host that only needs the dashboard does not have
+    /// to call <see cref="AddErpProcedureService"/> as well.
+    /// </remarks>
+    public static IServiceCollection AddErpApprovalDashboardService(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddScoped<IErpProcedureService, ErpProcedureService>();
+        services.AddScoped<IErpApprovalDashboardService, ErpApprovalDashboardService>();
+
+        return services;
+    }
+
+    /// <summary>
     /// Registers <see cref="ErpDbContext"/> against the ERP's own connection
     /// string — independent of any other <c>DbContext</c> or connection the host
     /// API already uses — pinned to Oracle 19c SQL compatibility, with the audit
@@ -106,7 +129,73 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
-        services.AddDbContext<ErpDbContext>((sp, options) =>
+        services.AddDbContext<ErpDbContext>(ConfigureErpOptions(connectionString, configure));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers a <b>subclass</b> of <see cref="ErpDbContext"/> as the engine's
+    /// context — so you can map your own approvable tables (override
+    /// <see cref="ErpDbContext.OnModelCreating"/>, call <c>base</c>, then add your
+    /// entities) while keeping the Oracle 19c pin and audit interceptor wiring.
+    /// The engine, dashboard and procedure services resolve <see cref="ErpDbContext"/>,
+    /// so they get your <typeparamref name="TContext"/> instance and see everything
+    /// it maps.
+    /// </summary>
+    /// <typeparam name="TContext">
+    /// Your context, deriving from <see cref="ErpDbContext"/>. Its constructor must
+    /// take <c>DbContextOptions&lt;ErpDbContext&gt;</c> and forward it to <c>base</c>.
+    /// </typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="connectionString">The ERP connection string (see the base overload).</param>
+    /// <param name="configure">Optional hook to tweak the Oracle options further.</param>
+    /// <returns>The same <paramref name="services"/>, for chaining.</returns>
+    /// <remarks>
+    /// <code>
+    /// public sealed class FlexionErpDbContext : ErpDbContext
+    /// {
+    ///     public FlexionErpDbContext(DbContextOptions&lt;ErpDbContext&gt; options) : base(options) { }
+    ///     protected override void OnModelCreating(ModelBuilder b)
+    ///     {
+    ///         base.OnModelCreating(b);                 // keep the registry / log / workflow tables
+    ///         b.Entity&lt;PurchaseOrderHeader&gt;(e =&gt;   // PurchaseOrderHeader : IErpApprovable, ...
+    ///         {
+    ///             e.HasKey(x =&gt; x.ID);
+    ///             e.ToTable("PO_HDR");
+    ///             e.Property(x =&gt; x.ID).ValueGeneratedNever();
+    ///             e.HasQueryFilter(x =&gt; x.IS_DELETED != true);
+    ///         });
+    ///     }
+    /// }
+    ///
+    /// services.AddErpApprovalEngine&lt;CurrentUser&gt;();
+    /// services.AddErpDbContext&lt;FlexionErpDbContext&gt;(config.GetConnectionString("Erp")!);
+    /// </code>
+    /// </remarks>
+    public static IServiceCollection AddErpDbContext<TContext>(
+        this IServiceCollection services,
+        string connectionString,
+        Action<OracleDbContextOptionsBuilder>? configure = null)
+        where TContext : ErpDbContext
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+
+        // Register TContext as the ErpDbContext service, so everything that depends
+        // on ErpDbContext gets the subclass instance (and its extra mappings).
+        services.AddDbContext<ErpDbContext, TContext>(ConfigureErpOptions(connectionString, configure));
+
+        return services;
+    }
+
+    // Shared Oracle options: pin 19c before the caller's tweaks, then attach the
+    // audit interceptor here (exactly once) when one has been registered — a
+    // procedure-only host that never called AddErpApprovalEngine has none.
+    private static Action<IServiceProvider, DbContextOptionsBuilder> ConfigureErpOptions(
+        string connectionString,
+        Action<OracleDbContextOptionsBuilder>? configure)
+        => (sp, options) =>
         {
             options.UseOracle(connectionString, oracle =>
             {
@@ -117,16 +206,10 @@ public static class ServiceCollectionExtensions
                 configure?.Invoke(oracle);
             });
 
-            // Attached here, not via the constructor, so it lands exactly once.
-            // Optional: a procedure-only host that never called
-            // AddErpApprovalEngine has no interceptor to attach.
             var interceptor = sp.GetService<ErpAuditSaveChangesInterceptor>();
             if (interceptor is not null)
             {
                 options.AddInterceptors(interceptor);
             }
-        });
-
-        return services;
-    }
+        };
 }

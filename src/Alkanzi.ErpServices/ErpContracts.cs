@@ -21,37 +21,37 @@ public interface IErpAuditable
     /// <summary>User who soft-deleted the row.</summary>
     int? DELETED_BY { get; set; }
 
-    /// <summary>When the row was created (UTC).</summary>
+    /// <summary>When the row was created (server-local).</summary>
     DateTime CREATED_AT { get; set; }
 
-    /// <summary>When the row was last updated (UTC).</summary>
+    /// <summary>When the row was last updated (server-local).</summary>
     DateTime? UPDATED_AT { get; set; }
 
-    /// <summary>When the row was soft-deleted (UTC).</summary>
+    /// <summary>When the row was soft-deleted (server-local).</summary>
     DateTime? DELETED_AT { get; set; }
 
-    /// <summary>Stamps the row as newly created by <paramref name="userId"/> (UTC now).</summary>
+    /// <summary>Stamps the row as newly created by <paramref name="userId"/> (server-local now).</summary>
     void MarkCreated(int userId)
     {
         CREATED_BY = userId;
-        CREATED_AT = DateTime.UtcNow;
+        CREATED_AT = DateTime.Now;
         IS_UPDATED = false;
         IS_DELETED = false;
     }
 
-    /// <summary>Stamps the row as updated by <paramref name="userId"/> (UTC now).</summary>
+    /// <summary>Stamps the row as updated by <paramref name="userId"/> (server-local now).</summary>
     void MarkUpdated(int userId)
     {
         UPDATED_BY = userId;
-        UPDATED_AT = DateTime.UtcNow;
+        UPDATED_AT = DateTime.Now;
         IS_UPDATED = true;
     }
 
-    /// <summary>Marks the row soft-deleted by <paramref name="userId"/> (UTC now).</summary>
+    /// <summary>Marks the row soft-deleted by <paramref name="userId"/> (server-local now).</summary>
     void MarkDeleted(int userId)
     {
         DELETED_BY = userId;
-        DELETED_AT = DateTime.UtcNow;
+        DELETED_AT = DateTime.Now;
         IS_DELETED = true;
     }
 }
@@ -70,7 +70,19 @@ public interface IErpApprovable
     string? DIGIT_SIGNATURE { get; set; }
 
     /// <summary>The document date, passed to the approval procedure as <c>TRANS_DOC_DATE</c>.</summary>
-    DateTime? DOC_DATE { get; set; }
+    /// <remarks>
+    /// Non-nullable: every ERP transaction carries a document date (matches the
+    /// host's <c>TRANSACTION_BASE.DOC_DATE</c>). Being a plain <see cref="DateTime"/>
+    /// keeps it a mapped column the dashboard can project in a LINQ query.
+    /// </remarks>
+    DateTime DOC_DATE { get; set; }
+
+    /// <summary>The transaction's own remarks, surfaced on the approval notification.</summary>
+    string? REMARKS { get; set; }
+
+    /// <summary>The document type the row belongs to.</summary>
+    string? DOC_TYPE { get; set; }
+    
 }
 
 /// <summary>

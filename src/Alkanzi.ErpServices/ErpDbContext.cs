@@ -16,8 +16,15 @@ public class ErpDbContext : DbContext
     private readonly ErpAuditSaveChangesInterceptor? _auditInterceptor;
 
     /// <summary>Creates the context, optionally attaching the audit interceptor.</summary>
+    /// <remarks>
+    /// Takes the non-generic <see cref="DbContextOptions"/> (not
+    /// <c>DbContextOptions&lt;ErpDbContext&gt;</c>) so a subclass can be registered
+    /// with <see cref="ServiceCollectionExtensions.AddErpDbContext{TContext}"/> and
+    /// forward its own <c>DbContextOptions&lt;TSubclass&gt;</c> here — the standard
+    /// base-context pattern for EF Core inheritance.
+    /// </remarks>
     public ErpDbContext(
-        DbContextOptions<ErpDbContext> options,
+        DbContextOptions options,
         ErpAuditSaveChangesInterceptor? auditInterceptor = null)
         : base(options)
         => _auditInterceptor = auditInterceptor;
@@ -42,6 +49,9 @@ public class ErpDbContext : DbContext
 
     /// <summary>Approval-log detail entries: one per approval action.</summary>
     public DbSet<SM_APPROVAL_LOGS_DETAIL> ApprovalLogDetails => Set<SM_APPROVAL_LOGS_DETAIL>();
+
+    /// <summary>Transaction history trail: one per approval action. Internal — see the entity.</summary>
+    internal DbSet<SM_TRANS_HISTORY> TransHistory => Set<SM_TRANS_HISTORY>();
 
     /// <inheritdoc />
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -129,6 +139,14 @@ public class ErpDbContext : DbContext
             entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedOnAdd();
 
             entity.HasQueryFilter(e => e.IS_DELETED != true);
+        });
+
+        // A plain history trail — no audit/soft-delete columns, so no query filter.
+        modelBuilder.Entity<SM_TRANS_HISTORY>(entity =>
+        {
+            entity.HasKey(e => e.ID);
+            entity.ToTable("SM_TRANS_HISTORY");
+            entity.Property(e => e.ID).HasColumnName("ID").ValueGeneratedOnAdd();
         });
     }
 }

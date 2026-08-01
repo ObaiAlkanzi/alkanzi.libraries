@@ -8,8 +8,9 @@ namespace Alkanzi.ErpServices;
 /// deletes — the project's own, so it depends on nothing outside it.
 /// </summary>
 /// <remarks>
-/// Timestamps are UTC. A delete is rewritten to an update that sets
-/// <c>IS_DELETED</c>, so the row stays and the global query filter hides it.
+/// Timestamps are server-local (<see cref="DateTime.Now"/>), matching the ERP's
+/// own convention. A delete is rewritten to an update that sets <c>IS_DELETED</c>,
+/// so the row stays and the global query filter hides it.
 /// </remarks>
 public sealed class ErpAuditSaveChangesInterceptor : SaveChangesInterceptor
 {
@@ -42,7 +43,7 @@ public sealed class ErpAuditSaveChangesInterceptor : SaveChangesInterceptor
         }
 
         var userId = _userProvider.GetCurrentUserId();
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         foreach (var entry in context.ChangeTracker.Entries<IErpAuditable>())
         {

@@ -40,7 +40,11 @@ IErpProcedureService.cs         ExecuteAsync / QueryAsync / ExecuteScalarProcAsy
 ErpProcedureService.cs            over ErpDbContext's connection
 IErpApprovalProcessService.cs   RunAsync — SM_APPROVE_PROCESS / SM_REJECT_PROCESS wrapper
 ErpApprovalProcessService.cs      transactional, commits on the procedure's success flag
-ServiceCollectionExtensions.cs  AddErpApprovalEngine / AddErpProcedureService / AddErpApprovalProcessService / AddErpDbContext
+IErpApprovalDashboardService.cs GetDataAsync — approval rows across a user's accessible doc types
+ErpApprovalDashboardService.cs    resolves each doc type's table via FM_TRANSACTION_MENU;
+                                  GetDepartmentEmployeesAsync — PANEL.DEPARTMENT_EMPLOYEES panel
+ServiceCollectionExtensions.cs  AddErpApprovalEngine / AddErpProcedureService / AddErpApprovalProcessService
+                                AddErpApprovalDashboardService / AddErpDbContext
 ```
 
 ## Wiring it up
@@ -81,6 +85,47 @@ Where `CurrentUser : IErpUserProvider` returns the acting user id. Tenant column
 come from the transaction row (`IErpTenantScoped`), so there is no company context
 to implement.
 
+### Mapping your own approvable tables
+
+The engine dispatches `docType → FM_TRANSACTION_MENU.TABLE_NAME →` the CLR type
+mapped to that table in **the engine's context model**. Out of the box only
+`CALL_REGISTERATION` and `FM_JOURNAL_HDR` are mapped, so to approve your own
+tables you map them on a **subclass of `ErpDbContext`** and register it with the
+typed `AddErpDbContext<TContext>` overload — the engine, dashboard and procedure
+services all resolve `ErpDbContext`, so they get your subclass and everything it
+maps:
+
+```csharp
+public sealed class FlexionErpDbContext : ErpDbContext
+{
+    // Base ctor takes the non-generic DbContextOptions; the subclass takes its own.
+    public FlexionErpDbContext(DbContextOptions<FlexionErpDbContext> options) : base(options) { }
+
+    protected override void OnModelCreating(ModelBuilder b)
+    {
+        base.OnModelCreating(b);   // keep the registry, log and workflow tables
+        b.Entity<PurchaseOrderHeader>(e =>   // PurchaseOrderHeader : IErpApprovable, IErpAuditable, IErpTenantScoped
+        {
+            e.HasKey(x => x.ID);
+            e.ToTable("PO_HDR");
+            e.Property(x => x.ID).ValueGeneratedNever();
+            e.HasQueryFilter(x => x.IS_DELETED != true);
+        });
+        // ... one block per approvable table
+    }
+}
+
+services.AddErpApprovalEngine<CurrentUser>();
+services.AddErpDbContext<FlexionErpDbContext>(config.GetConnectionString("Erp")!);
+```
+
+Each entity must implement `IErpApprovable` (plus `IErpAuditable`,
+`IErpTenantScoped`, and `IErpWorkflowBound` if workflow-bound). You can reuse the
+**same entity classes** your host context already defines — a CLR type may be
+mapped in more than one `DbContext`. This is a **separate** context from your
+host's (e.g. an `IdentityDbContext`), which cannot itself derive from
+`ErpDbContext`; both simply map the shared entity types over the same connection.
+
 > **Oracle 19c:** pin `UseOracleSQLCompatibility(DatabaseVersion19)`. The 23.x
 > provider defaults to 23ai SQL and emits the native `BOOLEAN` type, which 19c
 > rejects with ORA-00902.
@@ -107,6 +152,7 @@ public sealed class JournalController(IErpApprovalEngine approvals)
             ApprovalOutcome.NotAuthorized   => Forbid(),                      // 403
             ApprovalOutcome.NoWorkflow      => UnprocessableEntity(result.Message),
             ApprovalOutcome.NotApprovable   => UnprocessableEntity(result.Message),
+            ApprovalOutcome.ProcessFailed   => UnprocessableEntity(result.Message),
             _                               => BadRequest(result.Message),
         };
     }
@@ -117,9 +163,11 @@ public sealed class JournalController(IErpApprovalEngine approvals)
 applied), `Message` (for display/logging), and `Row` (the affected transaction —
 also handed back on the `Already*` outcomes so you can show current state).
 
-Each call resolves the document type through `FM_TRANSACTION_MENU` (scoped to the
-current tenant), resolves its `TABLE_NAME` to a mapped CLR type through EF's
-model, loads the row, applies the transition, and saves:
+Each call resolves the document type through `FM_TRANSACTION_MENU`, resolves its
+`TABLE_NAME` to a mapped CLR type through EF's model, loads the row, computes the
+transition, and — inside one transaction — applies the row through EF, runs the
+level's `UPDATE_SENTENCE`, drives the ERP approval procedure, and writes the log
+(see *Running the ERP approval procedures*):
 
 | Action  | `APPROVE_STATUS` | `APPROVE_LEVEL`     |
 |---------|------------------|---------------------|
@@ -130,25 +178,27 @@ model, loads the row, applies the transition, and saves:
 
 A row that is already **approved** or **rejected** is terminal: only `Rework`
 applies to it (the correction path that reopens it), and any other action comes
-back as `AlreadyApproved` / `AlreadyRejected`.
+back as `AlreadyApproved` / `AlreadyRejected`. Landing a climbing action on the
+workflow's final level forces `Approve` and stamps `DIGIT_SIGNATURE` — an AES
+signature of the transaction id, keyed to match the ERP's own scheme.
 
 **Results vs exceptions.** Outcomes that are normal answers to a user action come
 back as an `ApprovalResult`: `NotFound` (no row / soft-deleted), `NotApprovable`
 (the table has no approval columns), `AlreadyApproved`, `AlreadyRejected`,
 `NotAuthorized` (the acting user may not act at this level — see *Authorization*),
-and `NoWorkflow` (a workflow-bound row with no workflow configured). Genuine misuse
-and misconfiguration still throw — an undefined `ApprovalAction` or a `targetLevel`
-on a non-`Rework` action (`ArgumentException` / `ArgumentOutOfRangeException`), and
-a document type that is unconfigured or resolves to a table not mapped on
-`ErpDbContext` (`InvalidOperationException`).
+`NoWorkflow` (a workflow-bound row with no workflow configured), and `ProcessFailed`
+(the ERP approval procedure reported failure — the whole action rolled back).
+Genuine misuse and misconfiguration still throw — an undefined `ApprovalAction` or
+a `targetLevel` on a non-`Rework` action (`ArgumentException` /
+`ArgumentOutOfRangeException`), and a document type that is unconfigured or resolves
+to a table not mapped on `ErpDbContext` (`InvalidOperationException`).
 
 Every action method also takes an optional `remarks` (recorded on the log detail
-row) and `ApplyApprovalAsync` an optional `sgId` (security group, opt-in
-authorization):
+row) and an `sgId` (security group, for authorization):
 
 ```csharp
-await approvals.SubmitAsync("callRegistration", id, remarks: "Looks good");
-await approvals.RejectAsync("callRegistration", id, remarks: "Missing invoice");
+await approvals.SubmitAsync("callRegistration", id, remarks: "Looks good", sgId: securityGroupId);
+await approvals.RejectAsync("callRegistration", id, remarks: "Missing invoice", sgId: securityGroupId);
 await approvals.ApplyApprovalAsync("callRegistration", id, ApprovalAction.Approve, sgId: securityGroupId);
 ```
 
@@ -203,7 +253,7 @@ interpolated; `transId` is bound as a parameter.
 
 ## The approval log
 
-Every applied transition is recorded in two tables:
+Every applied transition is recorded in three tables:
 
 - **`SM_APPROVAL_LOGS_HEADER`** — one row per `(DOC_NAME, TRANSACTION_ID)`,
   created the first time a transaction is logged and flipped to `IS_APPROVED`
@@ -213,6 +263,12 @@ Every applied transition is recorded in two tables:
   the level it was taken at (`FROM_LEVEL`), the level's name
   (`FROM_LEVEL_NAME`, from `SM_WORKFLOW_FORM_LEVELS.REMARKS`), the status it
   moved to (`APPROVE_STATUS`), and the caller's `REMARKS` for the action.
+- **`SM_TRANS_HISTORY`** — the ERP's history trail, one row per action:
+  `ACTION` = the new status, `TRANS_STATUS` = the level, `STATUS_NAME` = the level
+  name, plus `POSTED_BY` / `POST_DATE`. A plain table (not `IErpAuditable`).
+
+Timestamps are **server-local** (`DateTime.Now`) throughout — the audit interceptor
+and `SM_TRANS_HISTORY.POST_DATE` — matching the ERP's own convention.
 
 **Tenant comes from the row.** When the transaction row implements
 `IErpTenantScoped` (exposes `ORG_ID` / `COMP_ID` / `BRANCH_ID`), the log takes those
@@ -221,33 +277,62 @@ from the row itself — not from an ambient context. A row without the columns l
 
 The writes go through the same context and enlist in the same transaction as the
 status change, so a rolled-back approval leaves no log behind. Audit columns are
-stamped by the interceptor, as everywhere else. The log tables' `ID` is
-**store-generated** (the header's key is read back to link the detail), which
-assumes they are Oracle identity columns — switch the mapping in `ErpDbContext`
-to a sequence if yours assign `ID` by trigger instead.
+stamped by the interceptor, as everywhere else — `IErpAuditable` also exposes
+`MarkCreated` / `MarkUpdated` / `MarkDeleted` for code paths that don't run through
+it. The log tables' `ID` is **store-generated** (the header's key is read back to
+link the detail), which assumes they are Oracle identity columns — switch the
+mapping in `ErpDbContext` to a sequence if yours assign `ID` by trigger instead.
 
 > **Not yet populated:** `IP` and `HOST_NAME` on the detail row — there's no
 > request-context argument yet; thread one through the action methods to fill them.
 
+## Notifications
+
+The engine sends nothing itself — a reusable data library shouldn't own SMTP.
+Instead, an `Applied` result carries an **`ApprovalNotification`** with everything a
+notification needs (docType, transId, workflow id, acting user, from/to level,
+status, main doc type, branch, display name, initiator). The host reads it and
+calls its own email service (which typically enqueues to a background worker, so
+there's no delay):
+
+```csharp
+var result = await approvals.ApproveAsync(docType, id, sgId: sgId);
+
+if (result.Status && result.Notification is { } n)
+{
+    await emailService.Post("APPROVAL", n.WorkflowId, n.DocType, n.TransId, n.ActingUser,
+        n.FromLevel, n.ToLevel, n.Status, n.MainDocType, n.BranchId, n.DisplayName, n.Initiator);
+}
+```
+
+`Notification` is populated only for `Applied`; it's `null` on every other outcome.
+
 ## Running the ERP approval procedures
 
-For document types whose approval is driven by the ERP's own PL/SQL — the
-workflow-stack routing lives there, not in this engine — `IErpApprovalProcessService`
-wraps the two procedures:
+The transition is driven by the ERP's own PL/SQL — the workflow-stack routing
+lives there. On every applied action `ApplyApprovalAsync` calls, through
+`IErpApprovalProcessService`, one of:
 
 - **`SM_APPROVE_PROCESS`** for most actions,
 - **`SM_REJECT_PROCESS`** for `Reject`.
 
-Both take the `STR_QUERY` UPDATE the procedure executes, the doc/tenant/user
-context, and return an OUT `MSG` of the form `'message,flag'` (`1` success, `0`
-failure). `RunAsync` picks the right procedure for the action, binds the
-parameters, parses the message, and wraps the call in a transaction it **commits
-only on success** — a failure flag or any exception rolls the whole process back.
+The engine applies the row itself through EF, so it passes a **null `STR_QUERY`**
+— the procedure drives the workflow stack rather than the UPDATE. It supplies the
+doc/tenant/user context (`mainDocType` = `FM_TRANSACTION_MENU.MAIN_DOC_TYPE`,
+`docDate` = the row's `DOC_DATE` formatted `DD-MON-YY`), reads the OUT `MSG` of the form
+`'message,flag'` (`1` success, `0` failure), and on a `0` flag rolls the whole
+action back and returns `ApprovalOutcome.ProcessFailed`.
+
+The EF row update, the `UPDATE_SENTENCE`, the procedure call, and the log write
+all run in **one transaction** the engine owns — or enlists in the caller's, if
+one is already open — so any failure undoes everything together.
+
+You can also call the service directly with a query you build yourself:
 
 ```csharp
 var result = await approvalProcess.RunAsync(
     ApprovalAction.Submit,
-    query: $"UPDATE {table} SET APPROVE_STATUS = {status}, APPROVE_LEVEL = {level} WHERE ID = {id}",
+    query: "UPDATE ... WHERE ID = ...",   // or null to let the caller apply the row
     mainDocType: mainDocType, docType: docType, transId: id,
     approveStatus: status, userId: userId,
     orgId: org, compId: comp, branchId: branch, docDate: docDate);
@@ -255,9 +340,56 @@ var result = await approvalProcess.RunAsync(
 if (!result.Success) return BadRequest(result.Message);
 ```
 
-> If the procedure issues its own `COMMIT` internally, that commit ends the
-> transaction — the rollback here can only undo work that is still pending. Verify
-> your procedure leaves the commit to the caller.
+> If a procedure issues its own `COMMIT` internally, that commit ends the
+> transaction — the rollback can only undo work still pending. Verify your
+> procedures leave the commit to the caller.
+
+## Approval dashboard
+
+`IErpApprovalDashboardService` reads approval rows across the document types a user
+has access to — for each, it resolves `TABLE_NAME` from `FM_TRANSACTION_MENU`,
+loads the mapped approvable table, and enriches the rows with the menu's
+`DISPLAY_NAME` / `MAIN_DOC_TYPE`:
+
+```csharp
+services.AddErpApprovalDashboardService();
+
+// The host supplies the doc types the user may see (its own permission model).
+var rows = await dashboard.GetDataAsync(userDocTypes, ApprovalDashboardFilter.Pending);
+// rows: Id, DocType, DocDate, ApproveStatus, ApproveLevel, WorkflowId,
+//       CreatedBy, CreatedAt, DisplayName, MainDocType
+```
+
+`ApprovalDashboardFilter` selects by status: **`All`**, **`Pending`** (not yet
+terminal — status 0/1/2), **`Approved`** (4), **`Rejected`** (3).
+
+It's **permission-scoped by doc type** (the caller passes the accessible menus), one
+query for the menus plus one per table (no N+1), and **generic** — a new approvable
+table just needs mapping on `ErpDbContext`, no dashboard change. `Id` / `CREATED_BY`
+/ `CREATED_AT` are read via `EF.Property`; a table shared by several doc types is
+filtered by `DOC_TYPE` so each menu sees only its own rows.
+
+### Department-employee panel
+
+The same `IErpApprovalDashboardService` also exposes the department-employee
+panel: `GetDepartmentEmployeesAsync(departmentId)` runs
+`PANEL.DEPARTMENT_EMPLOYEES(P_DEPARTMENT_ID)` and maps its `OUT_CURSOR` to
+`DepartmentEmployee` rows.
+
+```csharp
+var employees = await dashboard.GetDepartmentEmployeesAsync(departmentId);
+// employees: Id, UserId, Employee, Profile, DepartmentName, DepartmentId,
+//            DesignationId, Designation, Status, IsOnline
+
+var online = employees.Where(e => e.IsOnline).ToList();
+```
+
+Columns are mapped **by name** (order-independent) and **tolerant of absence**, so
+a query that omits a column just yields `null`/`0` rather than throwing. `IsOnline`
+derives from `STATUS` — `Present` / `Online` count as online (case-insensitive,
+trimmed); `Absent`, `On Annual leave`, … are offline. Extend the online set in
+`DepartmentEmployee`, or the routine / cursor / parameter names in
+`ErpApprovalDashboardService`, if the procedure changes.
 
 ## Calling Oracle procedures and functions
 

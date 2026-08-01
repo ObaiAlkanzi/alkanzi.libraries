@@ -11,7 +11,7 @@
     <Nullable>enable</Nullable>
 
     <PackageId>Alkanzi.ErpServices</PackageId>
-    <Version>3.0.0</Version>
+    <Version>3.1.7</Version>
     <Authors>Obai Alkanzi</Authors>
     <Description>ERP-specific approval and workflow engine for the Fakhruddin ERP on Oracle: dispatches document types to their transaction tables, moves approval state (submit / approve / reject / rework), resolves workflows, runs each level's UPDATE_SENTENCE, and writes the approval log — plus an Oracle stored-procedure / function service over the same connection.</Description>
     <PackageTags>erp;approval;workflow;oracle;efcore;entityframeworkcore;dotnet;softdelete;audit</PackageTags>

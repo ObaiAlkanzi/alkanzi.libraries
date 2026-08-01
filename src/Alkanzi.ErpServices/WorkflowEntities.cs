@@ -154,6 +154,45 @@ public class SM_APPROVAL_LOGS_DETAIL : IErpAuditable
 }
 
 /// <summary>
+/// A transaction's history trail — one row per approval action. A plain audit
+/// trail (not <see cref="IErpAuditable"/>): it carries its own <c>POSTED_BY</c> /
+/// <c>POST_DATE</c> and is never soft-deleted.
+/// </summary>
+/// <remarks>
+/// Internal: the engine writes it, and consumers (e.g. the ERP) have their own
+/// <c>SM_TRANS_HISTORY</c> type — keeping this out of the public surface avoids a
+/// name clash there.
+/// </remarks>
+internal class SM_TRANS_HISTORY
+{
+    public int ID { get; set; }
+
+    /// <summary>The document type.</summary>
+    public string? DOC_TYPE { get; set; }
+
+    /// <summary>The transaction's key.</summary>
+    public int TRANS_ID { get; set; }
+
+    /// <summary>The level the action was taken at (mirrors the log detail's <c>FROM_LEVEL</c>).</summary>
+    public int TRANS_STATUS { get; set; }
+
+    /// <summary>When the action was posted.</summary>
+    public DateTime POST_DATE { get; set; }
+
+    /// <summary>The acting user.</summary>
+    public int POSTED_BY { get; set; }
+
+    /// <summary>The status the action moved the row to (an <see cref="ApprovalAction"/> code).</summary>
+    public int ACTION { get; set; }
+
+    /// <summary>Sub-document flag.</summary>
+    public bool IS_SUB { get; set; }
+
+    /// <summary>The level's name.</summary>
+    public string? STATUS_NAME { get; set; }
+}
+
+/// <summary>
 /// One row of what <c>APPROVAL_REVERT_PAK.GET_TRANS_WF</c> returns for a document
 /// type: the workflow id, and — when several are configured — the function that
 /// picks the right one for a given transaction.

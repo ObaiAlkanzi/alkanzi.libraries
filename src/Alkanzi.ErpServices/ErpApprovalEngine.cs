@@ -1,5 +1,7 @@
 using System.Data;
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Oracle.ManagedDataAccess.Client;
 
@@ -15,6 +17,10 @@ namespace Alkanzi.ErpServices;
 /// </remarks>
 public sealed class ErpApprovalEngine : IErpApprovalEngine
 {
+    // The ERP's signature key (Flexion's Consts.userSecurityKey). Must match the
+    // ERP so DIGIT_SIGNATURE values verify on both sides.
+    private const string EncryptionKey = "b14ca2e916";
+
     private readonly ErpDbContext _context;
     private readonly IErpProcedureService _procedures;
     private readonly IErpUserProvider? _userProvider;
@@ -239,18 +245,30 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
         {
             return ApprovalResult.NotAuthorized(row, auth.Message);
         }
-        int CurrentLevel = row.APPROVE_LEVEL +1;
+
+       
+        int UserLevelId = row.APPROVE_LEVEL +1;
+        var level = workflow?.Levels.FirstOrDefault(l => l.LEVEL_ID == UserLevelId);
+        // The level the action is taken at, before the transition moves it.
+        var fromLevel = row.APPROVE_LEVEL;
         // The status is the action's own code by construction.
-        row.APPROVE_STATUS = (int)action; 
+        row.APPROVE_STATUS = (int)action;
         row.APPROVE_LEVEL = action switch
         {
-            ApprovalAction.Submit or ApprovalAction.Approve => row.APPROVE_LEVEL + 1,
+            ApprovalAction.Submit or ApprovalAction.Approve => UserLevelId,
             ApprovalAction.Rework => targetLevel,
 
             // Reject leaves the level alone, recording which level refused it.
             _ => row.APPROVE_LEVEL,
         };
-        
+        string? UpdateSentence = action switch
+        {
+            ApprovalAction.Submit or ApprovalAction.Approve => level?.UPDATE_SENTENCE,
+            ApprovalAction.Rework => targetLevel == 0 ? "DOC_STATUS = 0" : workflow?.Levels.FirstOrDefault(l => l.LEVEL_ID == targetLevel)?.UPDATE_SENTENCE,
+             
+            // Reject leaves the level alone, recording which level refused it.
+            _ => string.Empty,
+        };
         // Reaching the workflow's final level completes the chain — but only a
         // climbing action gets there by approving. A Reject or Rework that sits on
         // the final level keeps its own status. A full approval stamps a digital
@@ -259,23 +277,13 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
             && row.APPROVE_LEVEL == workflow?.FinalLevel)
         {
             row.APPROVE_STATUS = (int)ApprovalAction.Approve;
-            row.DIGIT_SIGNATURE = Convert.ToInt32(transId).ToString();
+            row.DIGIT_SIGNATURE = EncryptString(Convert.ToInt32(transId).ToString());
         }
-        string UpdateSentence = string.Empty;
-        if (row.APPROVE_LEVEL == 0)
-        {
-            UpdateSentence = "DOC_STATUS = 0";
-        }
-        else
-        {
-            var level = workflow?.Levels.FirstOrDefault(l => l.LEVEL_ID == row.APPROVE_LEVEL);
-            UpdateSentence = level?.UPDATE_SENTENCE ?? string.Empty;
-        }
-       
         var actingUser = _userProvider?.GetCurrentUserId() ?? 0;
         var id = Convert.ToInt32(transId);
         var tenant = row as IErpTenantScoped;
-        var docDate = row.DOC_DATE?.ToString("dd-MMM-yyyy", CultureInfo.InvariantCulture);
+        // Oracle 'DD-MON-YY', e.g. 30-JUL-26.
+        var docDate = row.DOC_DATE.ToString("dd-MMM-yy", CultureInfo.InvariantCulture).ToUpperInvariant();
 
         // Apply the transition through EF, run the level's UPDATE_SENTENCE, drive
         // the ERP approval procedure, and write the log — all in one transaction so
@@ -327,8 +335,8 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
                 return ApprovalResult.ProcessFailed(row, process.Message);
             }
 
-            // Record the action in the approval log — a header per (document type,
-            // transaction), a detail per action beneath it.
+            // Record the action — approval log and trans history — inside this
+            // transaction, so they commit with the approval.
             await WriteApprovalLogAsync(docType, transId, row, workflow, level, remarks, cancellationToken).ConfigureAwait(false);
 
             if (transaction is not null)
@@ -353,7 +361,23 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
             }
         }
 
-        return ApprovalResult.Applied(row);
+        // Hand back everything the host needs to send its own notification (e.g.
+        // alkanziEmailServiceI.Post) — the engine does no email itself.
+        var notification = new ApprovalNotification(
+            DocType: docType,
+            TransId: id,
+            WorkflowId: workflow?.WfId ?? 0,
+            ActingUser: actingUser,
+            FromLevel: fromLevel,
+            ToLevel: row.APPROVE_LEVEL,
+            Status: row.APPROVE_STATUS,
+            MainDocType: (menu as FM_TRANSACTION_MENU)?.MAIN_DOC_TYPE,
+            BranchId: tenant?.BRANCH_ID ?? 0,
+            DisplayName: (menu as FM_TRANSACTION_MENU)?.DISPLAY_NAME,
+            Initiator: (row as IErpAuditable)?.CREATED_BY ?? 0,
+            TransRemarks:row.REMARKS);
+
+        return ApprovalResult.Applied(row, notification);
     }
 
     /// <summary>
@@ -383,6 +407,7 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
         var orgId = tenant?.ORG_ID ?? 0;
         var compId = tenant?.COMP_ID ?? 0;
         var branchId = tenant?.BRANCH_ID ?? 0;
+        var userId = _userProvider?.GetCurrentUserId() ?? 0;
 
         var header = await _context.ApprovalLogHeaders
             .FirstOrDefaultAsync(
@@ -423,6 +448,20 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
             ORG_ID = orgId,
             COMP_ID = compId,
             BRANCH_ID = branchId,
+        });
+
+        // Mirror the action into the ERP's history trail — same shape the ERP
+        // writes: ACTION = status, TRANS_STATUS = level, STATUS_NAME = level name.
+        _context.TransHistory.Add(new SM_TRANS_HISTORY
+        {
+            DOC_TYPE = docType,
+            TRANS_ID = transactionId,
+            TRANS_STATUS = row.APPROVE_LEVEL,
+            ACTION = row.APPROVE_STATUS,
+            STATUS_NAME = level?.REMARKS,
+            POSTED_BY = userId,
+            POST_DATE = DateTime.Now,
+            IS_SUB = false,
         });
 
         await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -572,6 +611,33 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
             },
             CommandType.Text,
             cancellationToken);
+
+    /// <summary>
+    /// Produces the digital signature stamped on a fully approved row — AES over
+    /// the text, keyed the same way the ERP does so the signature verifies on both
+    /// sides. The SHA1 / 1000-iteration derivation and salt match the ERP's scheme.
+    /// </summary>
+    private static string EncryptString(string clearText)
+    {
+        var clearBytes = Encoding.Unicode.GetBytes(clearText);
+        var salt = new byte[] { 0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76 };
+
+        // 48 bytes = 32-byte key + 16-byte IV, taken in that order — the same bytes
+        // the ERP's Rfc2898DeriveBytes(GetBytes(32) then GetBytes(16)) produced.
+        var derived = Rfc2898DeriveBytes.Pbkdf2(EncryptionKey, salt, 1000, HashAlgorithmName.SHA1, 48);
+
+        using var encryptor = Aes.Create();
+        encryptor.Key = derived[..32];
+        encryptor.IV = derived[32..];
+
+        using var ms = new MemoryStream();
+        using (var cs = new CryptoStream(ms, encryptor.CreateEncryptor(), CryptoStreamMode.Write))
+        {
+            cs.Write(clearBytes, 0, clearBytes.Length);
+        }
+
+        return Convert.ToBase64String(ms.ToArray());
+    }
 
     /// <summary>
     /// Maps a table name to the CLR type mapped to it, through EF's model. Owned

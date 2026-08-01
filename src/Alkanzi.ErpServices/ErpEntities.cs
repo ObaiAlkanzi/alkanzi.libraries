@@ -28,7 +28,7 @@ public class FM_JOURNAL_HDR : IErpAuditable, IErpApprovable, IErpTenantScoped
     public string? DOC_TYPE { get; set; }
     public int DOC_NUM { get; set; }
     public string? NARRATION { get; set; }
-    public DateTime? DOC_DATE { get; set; }
+    public DateTime DOC_DATE { get; set; }
 
     public int ORG_ID { get; set; }
     public int COMP_ID { get; set; }
@@ -37,6 +37,7 @@ public class FM_JOURNAL_HDR : IErpAuditable, IErpApprovable, IErpTenantScoped
     public int APPROVE_STATUS { get; set; }
     public int APPROVE_LEVEL { get; set; }
     public string? DIGIT_SIGNATURE { get; set; }
+    public string? REMARKS { get; set; }
 
     public bool? IS_UPDATED { get; set; }
     public bool? IS_DELETED { get; set; }
@@ -61,11 +62,13 @@ public class CALL_REGISTERATION : IErpAuditable, IErpApprovable, IErpWorkflowBou
     public int APPROVE_LEVEL { get; set; }
     public string? DIGIT_SIGNATURE { get; set; }
     public int? WORKFLOW_ID { get; set; }
+    public string? REMARKS { get; set; }
+    public string? DOC_TYPE { get; set; }
 
     public int ORG_ID { get; set; }
     public int COMP_ID { get; set; }
     public int BRANCH_ID { get; set; }
-    public DateTime? DOC_DATE { get; set; }
+    public DateTime DOC_DATE { get; set; }
 
     public bool? IS_UPDATED { get; set; }
     public bool? IS_DELETED { get; set; }
