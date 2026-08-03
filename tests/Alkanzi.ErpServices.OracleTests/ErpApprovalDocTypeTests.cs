@@ -1,4 +1,5 @@
 using System.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Alkanzi.ErpServices.OracleTests;
 
@@ -64,19 +65,21 @@ public class ErpApprovalDocTypeTests(ErpServicesFixture fixture)
 
     /// <summary>
     /// Forces the transaction into a known, non-terminal (submitted) state at a
-    /// given level. Loads the row through the engine, which returns it as
-    /// <see cref="IErpApprovable"/> whatever concrete table it maps to — so a
-    /// single helper resets any document type. Runs inside the caller's
+    /// given level. Resolves the table from the registry and updates it with raw SQL
+    /// — generic over any document type, no per-table DbSet. Runs inside the caller's
     /// transaction, which is rolled back.
     /// </summary>
     private static async Task ResetToPendingAsync(
         IErpApprovalEngine engine, ErpDbContext context, string docType, object transId, int level)
     {
-        var row = await engine.GetAsync(docType, transId);
-        Assert.NotNull(row);
+        var menu = await engine.GetMenuAsync(docType);
+        Assert.False(string.IsNullOrWhiteSpace(menu?.TABLE_NAME));
 
-        row!.APPROVE_STATUS = (int)ApprovalAction.Submit;
-        row.APPROVE_LEVEL = level;
-        await context.SaveChangesAsync();
+        var submit = (int)ApprovalAction.Submit;
+#pragma warning disable EF1002 // table name is trusted registry config; transId is bound
+        await context.Database.ExecuteSqlRawAsync(
+            $"UPDATE {menu!.TABLE_NAME} SET APPROVE_STATUS = {submit}, APPROVE_LEVEL = {level} WHERE ID = {{0}}",
+            transId);
+#pragma warning restore EF1002
     }
 }

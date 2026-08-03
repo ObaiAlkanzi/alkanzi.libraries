@@ -1,28 +1,30 @@
+using System.Data;
 using System.Data.Common;
-using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Oracle.ManagedDataAccess.Client;
 
 namespace Alkanzi.ErpServices;
 
 /// <inheritdoc />
 public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
 {
-    private static readonly MethodInfo QueryTableMethod = typeof(ErpApprovalDashboardService)
-        .GetMethod(nameof(QueryTableAsync), BindingFlags.Instance | BindingFlags.NonPublic)!;
-
-    private readonly ErpDbContext _context;
     private readonly IErpProcedureService _procedures;
 
     /// <summary>
-    /// Creates the service over the ERP context. The procedure runner (used by the
-    /// department-employee panel) is optional and self-provisions over the same
-    /// context when not supplied.
+    /// Creates the service over any EF context — used only for its connection. The
+    /// registry (FM_TRANSACTION_MENU) and the transaction tables are read purely by
+    /// table name with raw SQL, so the host's own application context works and no
+    /// entity types are required. The procedure runner (department-employee panel)
+    /// self-provisions when not supplied.
     /// </summary>
-    public ErpApprovalDashboardService(ErpDbContext context, IErpProcedureService? procedures = null)
+    public ErpApprovalDashboardService(DbContext context, IErpProcedureService? procedures = null)
     {
-        _context = context ?? throw new ArgumentNullException(nameof(context));
+        ArgumentNullException.ThrowIfNull(context);
         _procedures = procedures ?? new ErpProcedureService(context);
     }
+
+    // Registry row read via raw SQL — no package FM_TRANSACTION_MENU type needed.
+    private sealed record MenuRow(string DocType, string? TableName, string? DisplayName, string? MainDocType);
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<ApprovalDashboardRow>> GetDataAsync(
@@ -32,61 +34,75 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
     {
         ArgumentNullException.ThrowIfNull(docTypes);
 
-        var types = docTypes.Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().ToList();
-        if (types.Count == 0)
+        var types = new HashSet<string>(
+            docTypes.Where(t => !string.IsNullOrWhiteSpace(t)), StringComparer.OrdinalIgnoreCase);
+         if (types.Count == 0)
         {
             return [];
         }
 
-        // One query for the accessible menus — TABLE_NAME to dispatch on, plus the
-        // DISPLAY_NAME / MAIN_DOC_TYPE the rows are enriched with.
-        var menus = await _context.TransactionMenus
-            .Where(m => types.Contains(m.DOC_TYPE))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        // The registry is small; read it once with raw SQL. Gives both the accessible
+        // menus (TABLE_NAME to dispatch on, DISPLAY_NAME / MAIN_DOC_TYPE to enrich
+        // with) and the per-table doc-type counts used to decide filtering — no
+        // package FM_TRANSACTION_MENU type required.
+        var allMenus = await LoadMenusAsync(cancellationToken).ConfigureAwait(false);
 
-        // Resolve every accessible menu to its approvable CLR type first. Skip a
-        // doc type whose table is unmapped or not approvable (e.g. the approval-log
-        // tables, which are IErpAuditable but not IErpApprovable).
-        var resolved = new List<(FM_TRANSACTION_MENU Menu, Type ClrType)>();
-        foreach (var menu in menus)
-        {
-            if (string.IsNullOrWhiteSpace(menu.TABLE_NAME))
-            {
-                continue;
-            }
+        // A table is filtered by DOC_TYPE only when shared by more than one doc type.
+        // Count across the WHOLE registry, so a shared table the caller has partial
+        // access to is still filtered (else it leaks other doc types' rows); a
+        // single-doc-type table is never filtered (its DOC_TYPE column may not exist).
+        var docTypesByTable = allMenus
+            .Where(m => !string.IsNullOrWhiteSpace(m.TableName))
+            .GroupBy(m => m.TableName!.Trim().ToUpperInvariant())
+            .ToDictionary(g => g.Key, g => g.Select(x => x.DocType).Distinct(StringComparer.OrdinalIgnoreCase).Count());
 
-            var clrType = ResolveClrType(menu.TABLE_NAME);
-            if (clrType is null || !typeof(IErpApprovable).IsAssignableFrom(clrType))
-            {
-                continue;
-            }
-
-            resolved.Add((menu, clrType));
-        }
-
-        // A table is only filtered by DOC_TYPE when it is shared by more than one
-        // doc type. Decide that from the full registry — not just the menus this
-        // caller can see — so a shared table the caller has partial access to is
-        // still filtered (otherwise it would leak the other doc types' rows), and
-        // a single-doc-type table (whose physical DOC_TYPE column may not even
-        // exist) is never filtered — filtering it would throw ORA-00904.
-        var sharedTables = await ResolveSharedTablesAsync(resolved, cancellationToken).ConfigureAwait(false);
+        // Accessible menus, one per doc type (a doc type can have several tenant rows).
+        var accessible = allMenus
+            .Where(m => types.Contains(m.DocType) && !string.IsNullOrWhiteSpace(m.TableName))
+            .GroupBy(m => m.DocType, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First());
 
         var rows = new List<ApprovalDashboardRow>();
-        foreach (var (menu, clrType) in resolved)
+        foreach (var menu in accessible)
         {
-            var applyDocTypeFilter = sharedTables.Contains(clrType);
+            var applyDocTypeFilter =
+                docTypesByTable.TryGetValue(menu.TableName!.Trim().ToUpperInvariant(), out var count) && count > 1;
 
-            var task = (Task<List<ApprovalDashboardRow>>)QueryTableMethod
-                .MakeGenericMethod(clrType)
-                .Invoke(this, [menu, filter, applyDocTypeFilter, cancellationToken])!;
-
-            rows.AddRange(await task.ConfigureAwait(false));
+            rows.AddRange(await QueryTableAsync(menu, filter, applyDocTypeFilter, cancellationToken).ConfigureAwait(false));
         }
 
         return rows;
     }
+
+    // The whole registry, read once with raw SQL.
+    private Task<List<MenuRow>> LoadMenusAsync(CancellationToken cancellationToken)
+        => QuerySqlAsync(
+            "SELECT DOC_TYPE, TABLE_NAME, DISPLAY_NAME, MAIN_DOC_TYPE FROM FM_TRANSACTION_MENU",
+            _ => { },
+            reader => new MenuRow(
+                Str(reader, "DOC_TYPE") ?? string.Empty,
+                Str(reader, "TABLE_NAME"),
+                Str(reader, "DISPLAY_NAME"),
+                Str(reader, "MAIN_DOC_TYPE")),
+            cancellationToken);
+
+    private Task<List<T>> QuerySqlAsync<T>(
+        string sql, Action<OracleCommand> bind, Func<DbDataReader, T> map, CancellationToken cancellationToken)
+        => _procedures.ExecuteAsync(sql, async command =>
+        {
+            var oracle = (OracleCommand)command;
+            oracle.BindByName = true;
+            bind(oracle);
+
+            var results = new List<T>();
+            await using var reader = await oracle.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                results.Add(map(reader));
+            }
+
+            return results;
+        }, CommandType.Text, cancellationToken);
 
     // --- Department-employee panel (PANEL.DEPARTMENT_EMPLOYEES) ---
 
@@ -136,108 +152,66 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
     private static int Int(DbDataReader reader, string column)
         => Ordinal(reader, column) is int i && !reader.IsDBNull(i) ? Convert.ToInt32(reader.GetValue(i)) : 0;
 
-    // Generic per-table query, invoked by reflection for the resolved CLR type. ID,
-    // CREATED_BY and CREATED_AT are not on IErpApprovable, so they are read through
-    // EF.Property (mapped to their columns); the menu fields are projected as
-    // constants. When the table is shared by several doc types it is filtered by
-    // DOC_TYPE so only this one's rows return; a single-doc-type table is not
-    // filtered (its physical DOC_TYPE column may not even exist).
-    private async Task<List<ApprovalDashboardRow>> QueryTableAsync<TEntity>(
-        FM_TRANSACTION_MENU menu, ApprovalDashboardFilter filter, bool applyDocTypeFilter, CancellationToken cancellationToken)
-        where TEntity : class, IErpApprovable
+    // Reads a transaction table's approval rows by raw SQL. A shared table (several
+    // doc types) is filtered by DOC_TYPE so only this one's rows return; a
+    // single-doc-type table is not (its DOC_TYPE column may not exist). Soft-deleted
+    // rows are excluded. A table lacking the expected columns is skipped rather than
+    // failing the whole dashboard.
+    private async Task<List<ApprovalDashboardRow>> QueryTableAsync(
+        MenuRow menu, ApprovalDashboardFilter filter, bool applyDocTypeFilter, CancellationToken cancellationToken)
     {
-        const int rejected = (int)ApprovalAction.Reject;   // 3
-        const int approved = (int)ApprovalAction.Approve;  // 4
-
-        IQueryable<TEntity> query = _context.Set<TEntity>();
+        var where = new List<string> { "(IS_DELETED IS NULL OR IS_DELETED != 1)" };
+        switch (filter)
+        {
+            case ApprovalDashboardFilter.Pending: where.Add("APPROVE_STATUS NOT IN (3, 4)"); break;   // 3 reject, 4 approve
+            case ApprovalDashboardFilter.Approved: where.Add("APPROVE_STATUS = 4"); break;
+            case ApprovalDashboardFilter.Rejected: where.Add("APPROVE_STATUS = 3"); break;
+        }
 
         if (applyDocTypeFilter)
         {
-            query = query.Where(e => e.DOC_TYPE == menu.DOC_TYPE);
+            where.Add("DOC_TYPE = :dt");
         }
 
-        // Pending = anything not yet terminal (0/1/2); Approved = 4; Rejected = 3.
-        query = filter switch
+        var sql =
+            "SELECT ID, DOC_DATE, APPROVE_STATUS, APPROVE_LEVEL, WORKFLOW_ID, CREATED_BY, CREATED_AT " +
+            $"FROM {menu.TableName!.Trim()} WHERE {string.Join(" AND ", where)}";
+
+        try
         {
-            ApprovalDashboardFilter.Pending => query.Where(e => e.APPROVE_STATUS != rejected && e.APPROVE_STATUS != approved),
-            ApprovalDashboardFilter.Approved => query.Where(e => e.APPROVE_STATUS == approved),
-            ApprovalDashboardFilter.Rejected => query.Where(e => e.APPROVE_STATUS == rejected),
-            _ => query,
-        };
-
-        return await query
-            .Select(e => new ApprovalDashboardRow(
-                EF.Property<int>(e, "ID"),
-                menu.DOC_TYPE,
-                (DateTime?)e.DOC_DATE,
-                e.APPROVE_STATUS,
-                e.APPROVE_LEVEL,
-                e.WORKFLOW_ID,
-                EF.Property<int>(e, "CREATED_BY"),
-                EF.Property<DateTime>(e, "CREATED_AT"),
-                menu.DISPLAY_NAME,
-                menu.MAIN_DOC_TYPE))
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-    }
-
-    // The subset of the resolved CLR types whose table backs more than one doc
-    // type in the registry — the only ones that need (and can have) a DOC_TYPE
-    // filter. Counts distinct doc types per table across the WHOLE registry, so a
-    // caller with partial access to a shared table still filters it.
-    private async Task<HashSet<Type>> ResolveSharedTablesAsync(
-        IReadOnlyCollection<(FM_TRANSACTION_MENU Menu, Type ClrType)> resolved,
-        CancellationToken cancellationToken)
-    {
-        var tableNames = resolved
-            .Select(r => r.Menu.TABLE_NAME!.Trim().ToUpperInvariant())
-            .Distinct()
-            .ToList();
-
-        if (tableNames.Count == 0)
+            return await QuerySqlAsync(
+                sql,
+                command =>
+                {
+                    if (applyDocTypeFilter)
+                    {
+                        command.Parameters.Add(new OracleParameter("dt", OracleDbType.Varchar2) { Value = menu.DocType });
+                    }
+                },
+                reader => new ApprovalDashboardRow(
+                    Int(reader, "ID"),
+                    menu.DocType,
+                    NullableDate(reader, "DOC_DATE"),
+                    Int(reader, "APPROVE_STATUS"),
+                    Int(reader, "APPROVE_LEVEL"),
+                    NullableInt(reader, "WORKFLOW_ID"),
+                    Int(reader, "CREATED_BY"),
+                    NullableDate(reader, "CREATED_AT") ?? default,
+                    menu.DisplayName,
+                    menu.MainDocType),
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OracleException)
         {
+            // The table doesn't expose the expected approval columns — skip it
+            // rather than fail the whole dashboard.
             return [];
         }
-
-        // Every registry row on those tables — including doc types this caller
-        // cannot see — reduced to a distinct-doc-type count per table.
-        var registry = await _context.TransactionMenus
-            .Where(m => m.TABLE_NAME != null && tableNames.Contains(m.TABLE_NAME.ToUpper()))
-            .Select(m => new { m.TABLE_NAME, m.DOC_TYPE })
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        var docTypesByTable = registry
-            .GroupBy(x => x.TABLE_NAME!.Trim().ToUpperInvariant())
-            .ToDictionary(
-                g => g.Key,
-                g => g.Select(x => x.DOC_TYPE).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-
-        return resolved
-            .Where(r => docTypesByTable.TryGetValue(r.Menu.TABLE_NAME!.Trim().ToUpperInvariant(), out var count) && count > 1)
-            .Select(r => r.ClrType)
-            .ToHashSet();
     }
 
-    // Maps a table name to the CLR type mapped to it, through EF's model — the same
-    // resolution the approval engine uses.
-    private Type? ResolveClrType(string tableName)
-    {
-        var target = tableName.Trim();
+    private static int? NullableInt(DbDataReader reader, string column)
+        => Ordinal(reader, column) is int i && !reader.IsDBNull(i) ? Convert.ToInt32(reader.GetValue(i)) : null;
 
-        foreach (var entityType in _context.Model.GetEntityTypes())
-        {
-            if (entityType.IsOwned() || entityType.BaseType is not null)
-            {
-                continue;
-            }
-
-            if (string.Equals(entityType.GetTableName(), target, StringComparison.OrdinalIgnoreCase))
-            {
-                return entityType.ClrType;
-            }
-        }
-
-        return null;
-    }
+    private static DateTime? NullableDate(DbDataReader reader, string column)
+        => Ordinal(reader, column) is int i && !reader.IsDBNull(i) ? Convert.ToDateTime(reader.GetValue(i)) : null;
 }

@@ -49,82 +49,33 @@ ServiceCollectionExtensions.cs  AddErpApprovalEngine / AddErpProcedureService / 
 
 ## Wiring it up
 
-The approval engine saves through the context, so the audit interceptor must be
-attached to `ErpDbContext` for approvals to stamp `UPDATED_BY` / `UPDATED_AT`.
+The engine reads and writes **everything by table name with raw SQL** — the
+transaction row and the approval-infrastructure tables (`FM_TRANSACTION_MENU`, the
+workflow, log and history tables). It needs **no entity types** and does **not**
+touch your application's `DbContext`; it runs on its own `ErpDbContext`, which is
+just a connection over the ERP connection string.
 
 ```csharp
-// Your own acting-user implementation. Tenant (ORG/COMP/BRANCH) is read from the
-// transaction row, so no company context is registered.
+// Your own acting-user implementation. Tenant (ORG/COMP/BRANCH), the initiator and
+// the doc date are all read from the transaction row.
 services.AddErpApprovalEngine<CurrentUser>();
-services.AddErpProcedureService();
-services.AddErpApprovalProcessService();   // SM_APPROVE_PROCESS / SM_REJECT_PROCESS wrapper
+services.AddErpApprovalDashboardService();
 
-// The ERP has its own connection — independent of any other DbContext or
-// connection the host API uses. Give it its own (e.g. named) connection string.
+// The engine's own connection — a (e.g. named) ERP connection string, independent
+// of any other DbContext the host uses.
 services.AddErpDbContext(config.GetConnectionString("Erp")!);
 ```
 
-`ErpDbContext` is standalone: it shares nothing with the host's other contexts,
-so its connection string is entirely separate. Everything an approval touches —
-the status change, the level's `UPDATE_SENTENCE`, and the approval-log writes —
-flows through this one context's single connection, so it commits or rolls back
-as one unit of work.
+That's the whole integration. To approve a new table, just add its
+`FM_TRANSACTION_MENU` row (`DOC_TYPE` → `TABLE_NAME`) — the engine `UPDATE`s that
+table by name and writes the log; nothing in code changes. The table only needs the
+standard columns every ERP transaction carries (`APPROVE_STATUS`, `APPROVE_LEVEL`,
+`WORKFLOW_ID`, `DIGIT_SIGNATURE`, `DOC_DATE`, `REMARKS`, `DOC_TYPE`, the tenant and
+audit columns). Everything an approval touches — the row's status change, the
+level's `UPDATE_SENTENCE`, the approval-procedure call and the log writes — runs on
+this one connection in a single transaction, so it commits or rolls back as one.
 
-`AddErpDbContext` pins Oracle 19c compatibility and attaches the audit
-interceptor **exactly once** (when `AddErpApprovalEngine` has registered one).
-Attach it only here *or* through the context constructor — never both, or every
-row stamps twice. If you would rather wire the context by hand:
-
-```csharp
-services.AddDbContext<ErpDbContext>((sp, options) => options
-    .UseOracle(connectionString, o => o.UseOracleSQLCompatibility(OracleSQLCompatibility.DatabaseVersion19))
-    .AddInterceptors(sp.GetRequiredService<ErpAuditSaveChangesInterceptor>()));
-```
-
-Where `CurrentUser : IErpUserProvider` returns the acting user id. Tenant columns
-come from the transaction row (`IErpTenantScoped`), so there is no company context
-to implement.
-
-### Mapping your own approvable tables
-
-The engine dispatches `docType → FM_TRANSACTION_MENU.TABLE_NAME →` the CLR type
-mapped to that table in **the engine's context model**. Out of the box only
-`CALL_REGISTERATION` and `FM_JOURNAL_HDR` are mapped, so to approve your own
-tables you map them on a **subclass of `ErpDbContext`** and register it with the
-typed `AddErpDbContext<TContext>` overload — the engine, dashboard and procedure
-services all resolve `ErpDbContext`, so they get your subclass and everything it
-maps:
-
-```csharp
-public sealed class FlexionErpDbContext : ErpDbContext
-{
-    // Base ctor takes the non-generic DbContextOptions; the subclass takes its own.
-    public FlexionErpDbContext(DbContextOptions<FlexionErpDbContext> options) : base(options) { }
-
-    protected override void OnModelCreating(ModelBuilder b)
-    {
-        base.OnModelCreating(b);   // keep the registry, log and workflow tables
-        b.Entity<PurchaseOrderHeader>(e =>   // PurchaseOrderHeader : IErpApprovable, IErpAuditable, IErpTenantScoped
-        {
-            e.HasKey(x => x.ID);
-            e.ToTable("PO_HDR");
-            e.Property(x => x.ID).ValueGeneratedNever();
-            e.HasQueryFilter(x => x.IS_DELETED != true);
-        });
-        // ... one block per approvable table
-    }
-}
-
-services.AddErpApprovalEngine<CurrentUser>();
-services.AddErpDbContext<FlexionErpDbContext>(config.GetConnectionString("Erp")!);
-```
-
-Each entity must implement `IErpApprovable` (plus `IErpAuditable`,
-`IErpTenantScoped`, and `IErpWorkflowBound` if workflow-bound). You can reuse the
-**same entity classes** your host context already defines — a CLR type may be
-mapped in more than one `DbContext`. This is a **separate** context from your
-host's (e.g. an `IdentityDbContext`), which cannot itself derive from
-`ErpDbContext`; both simply map the shared entity types over the same connection.
+Where `CurrentUser : IErpUserProvider` returns the acting user id.
 
 > **Oracle 19c:** pin `UseOracleSQLCompatibility(DatabaseVersion19)`. The 23.x
 > provider defaults to 23ai SQL and emits the native `BOOLEAN` type, which 19c

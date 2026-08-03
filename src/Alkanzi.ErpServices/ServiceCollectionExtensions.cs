@@ -11,23 +11,22 @@ namespace Alkanzi.ErpServices;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers <see cref="IErpApprovalEngine"/>, the audit interceptor it
-    /// saves through, and the acting-user provider it needs.
+    /// Registers <see cref="IErpApprovalEngine"/> and the acting-user provider it
+    /// needs, over the package's <see cref="ErpDbContext"/> (a connection holder over
+    /// the ERP connection string — register it with <see cref="AddErpDbContext"/>).
+    /// The engine reads and updates the transaction row and all approval tables with
+    /// raw SQL by table name, so it needs <b>no entity types and no link to the host's
+    /// own application context</b>.
     /// </summary>
     /// <typeparam name="TUser">Your <see cref="IErpUserProvider"/> implementation.</typeparam>
     /// <param name="services">The service collection.</param>
     /// <returns>The same <paramref name="services"/>, for chaining.</returns>
     /// <remarks>
-    /// Tenant (ORG/COMP/BRANCH) comes from the transaction row itself
-    /// (<see cref="IErpTenantScoped"/>), so no company context is registered here.
-    /// Assumes <see cref="ErpDbContext"/> is registered with <c>AddDbContext</c>,
-    /// with the registered <see cref="ErpAuditSaveChangesInterceptor"/> attached
-    /// so approvals stamp the audit columns:
+    /// Tenant (ORG/COMP/BRANCH), the initiator and the doc date all come from the
+    /// transaction row (read by SQL). Runs on its own connection:
     /// <code>
     /// services.AddErpApprovalEngine&lt;CurrentUser&gt;();
-    /// services.AddDbContext&lt;ErpDbContext&gt;((sp, o) =&gt; o
-    ///     .UseOracle(connectionString, x =&gt; x.UseOracleSQLCompatibility(OracleSQLCompatibility.DatabaseVersion19))
-    ///     .AddInterceptors(sp.GetRequiredService&lt;ErpAuditSaveChangesInterceptor&gt;()));
+    /// services.AddErpDbContext(config.GetConnectionString("Erp")!);
     /// </code>
     /// </remarks>
     public static IServiceCollection AddErpApprovalEngine<TUser>(this IServiceCollection services)
@@ -36,27 +35,25 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
 
         services.AddScoped<IErpUserProvider, TUser>();
-        services.AddScoped(sp => new ErpAuditSaveChangesInterceptor(sp.GetRequiredService<IErpUserProvider>()));
-        services.AddScoped<IErpApprovalEngine, ErpApprovalEngine>();
+        services.AddScoped<IErpApprovalEngine>(sp => new ErpApprovalEngine(
+            sp.GetRequiredService<ErpDbContext>(),
+            userProvider: sp.GetRequiredService<IErpUserProvider>()));
 
         return services;
     }
 
     /// <summary>
-    /// Registers <see cref="IErpProcedureService"/> over <see cref="ErpDbContext"/>.
+    /// Registers <see cref="IErpProcedureService"/> over the package's
+    /// <see cref="ErpDbContext"/> connection.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The same <paramref name="services"/>, for chaining.</returns>
-    /// <remarks>
-    /// Independent of <see cref="AddErpApprovalEngine{TUser}"/> — a
-    /// consumer that only calls procedures needs just this and a registered
-    /// <see cref="ErpDbContext"/>.
-    /// </remarks>
     public static IServiceCollection AddErpProcedureService(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        return services.AddScoped<IErpProcedureService, ErpProcedureService>();
+        return services.AddScoped<IErpProcedureService>(
+            sp => new ErpProcedureService(sp.GetRequiredService<ErpDbContext>()));
     }
 
     /// <summary>
@@ -69,29 +66,23 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        return services.AddScoped<IErpApprovalProcessService, ErpApprovalProcessService>();
+        return services.AddScoped<IErpApprovalProcessService>(
+            sp => new ErpApprovalProcessService(sp.GetRequiredService<ErpDbContext>()));
     }
 
     /// <summary>
-    /// Registers <see cref="IErpApprovalDashboardService"/> — reads approval rows
-    /// across the document types a user has access to, plus the department-employee
-    /// panel (<c>PANEL.DEPARTMENT_EMPLOYEES</c>), over <see cref="ErpDbContext"/>.
+    /// Registers <see cref="IErpApprovalDashboardService"/> — approval rows across the
+    /// document types a user has access to, plus the department-employee panel
+    /// (<c>PANEL.DEPARTMENT_EMPLOYEES</c>). Reads everything by table name with raw SQL.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <returns>The same <paramref name="services"/>, for chaining.</returns>
-    /// <remarks>
-    /// Self-provisions <see cref="IErpProcedureService"/> (the panel runs a stored
-    /// procedure through it), so a host that only needs the dashboard does not have
-    /// to call <see cref="AddErpProcedureService"/> as well.
-    /// </remarks>
     public static IServiceCollection AddErpApprovalDashboardService(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.TryAddScoped<IErpProcedureService, ErpProcedureService>();
-        services.AddScoped<IErpApprovalDashboardService, ErpApprovalDashboardService>();
-
-        return services;
+        return services.AddScoped<IErpApprovalDashboardService>(
+            sp => new ErpApprovalDashboardService(sp.GetRequiredService<ErpDbContext>()));
     }
 
     /// <summary>
@@ -110,11 +101,12 @@ public static class ServiceCollectionExtensions
     /// <param name="configure">Optional hook to tweak the Oracle options further.</param>
     /// <returns>The same <paramref name="services"/>, for chaining.</returns>
     /// <remarks>
-    /// Attaches the <see cref="ErpAuditSaveChangesInterceptor"/> here, exactly once,
-    /// when it has been registered (<see cref="AddErpApprovalEngine{TUser}"/>
-    /// registers it). Do not also pass the interceptor through the context
-    /// constructor — attaching it twice stamps every row twice. Pin 19c yourself if
-    /// you supply <paramref name="configure"/> without calling the base overload.
+    /// Standalone convenience for hosts that want the package's own
+    /// <see cref="ErpDbContext"/> (e.g. tests). A host that runs the engine on its
+    /// own context does not need this. Attaches the
+    /// <see cref="ErpAuditSaveChangesInterceptor"/> here, exactly once, when one has
+    /// been registered. Pin 19c yourself if you supply <paramref name="configure"/>
+    /// without calling the base overload.
     /// <code>
     /// services.AddErpApprovalEngine&lt;CurrentUser&gt;();
     /// services.AddErpProcedureService();

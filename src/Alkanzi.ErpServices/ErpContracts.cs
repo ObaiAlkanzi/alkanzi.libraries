@@ -132,6 +132,12 @@ public interface IErpTransactionMenu
 
     /// <summary>Name of the table holding this document type's transactions, or null.</summary>
     string? TABLE_NAME { get; }
+
+    /// <summary>Human-readable name for the document type, or null.</summary>
+    string? DISPLAY_NAME { get; }
+
+    /// <summary>The parent/main document type this one rolls up to, or null.</summary>
+    string? MAIN_DOC_TYPE { get; }
 }
 
 /// <summary>Supplies the current acting user for audit stamping.</summary>

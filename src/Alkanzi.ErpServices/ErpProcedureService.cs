@@ -10,10 +10,10 @@ namespace Alkanzi.ErpServices;
 /// <inheritdoc />
 public sealed class ErpProcedureService : IErpProcedureService
 {
-    private readonly ErpDbContext _context;
+    private readonly DbContext _context;
 
-    /// <summary>Creates the service over the ERP context's connection.</summary>
-    public ErpProcedureService(ErpDbContext context)
+    /// <summary>Creates the service over any EF context's connection.</summary>
+    public ErpProcedureService(DbContext context)
         => _context = context ?? throw new ArgumentNullException(nameof(context));
 
     /// <inheritdoc />

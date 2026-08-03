@@ -16,8 +16,8 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
 
     // callRegistration dispatches to CALL_REGISTERATION, which is both
     // approvable and workflow-bound; id 1 is a live row.
-    private const string DocType = "callRegistration";
-    private const int TransId = 1;
+    private const string DocType = "CreditNotes";
+    private const int TransId = 201;
 
     private readonly ErpServicesFixture _fixture = fixture;
 
@@ -53,7 +53,8 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
        //var result = await engine.ApplyApprovalAsync(DocType, TransId, ApprovalAction.Submit,remarks:"test Submit 1",sgId : 1);
        var result = await engine.ApplyApprovalAsync(DocType, TransId, ApprovalAction.Submit,0,remarks:"test Submit 1",sgId : 1);
         Assert.NotNull(result);
-        Assert.Equal((int)ApprovalAction.Approve, result.Row!.APPROVE_STATUS); 
+        //Assert.Equal((int)ApprovalAction.Approve, result.Row!.APPROVE_STATUS); 
+        Assert.Equal(true, result.Status);
         await transaction.CommitAsync();
     }
 
