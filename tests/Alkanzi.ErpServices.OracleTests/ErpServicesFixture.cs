@@ -34,7 +34,13 @@ public sealed class ErpServicesFixture
     /// Creates a context with the audit interceptor attached, so a save stamps
     /// <c>UPDATED_BY</c>/<c>UPDATED_AT</c> the way a real consumer's would.
     /// </summary>
-    public ErpDbContext CreateContext()
+    /// <param name="userProvider">
+    /// Acting user for the audit stamp. Defaults to the shared <see cref="UserProvider"/>.
+    /// Pass a per-test provider to act as a different user without mutating the
+    /// fixture — it is shared across the whole collection, so mutating
+    /// <see cref="UserProvider"/> would leak into every other test.
+    /// </param>
+    public ErpDbContext CreateContext(IErpUserProvider? userProvider = null)
     {
         var connectionString = OracleConnectionSource.ConnectionString
             ?? throw new InvalidOperationException("No Oracle instance is configured.");
@@ -43,15 +49,21 @@ public sealed class ErpServicesFixture
             .UseOracle(connectionString, o => o.UseOracleSQLCompatibility(SqlCompatibility))
             .Options;
 
-        return new ErpDbContext(options, new ErpAuditSaveChangesInterceptor(UserProvider));
+        return new ErpDbContext(options, new ErpAuditSaveChangesInterceptor(userProvider ?? UserProvider));
     }
 
     /// <summary>
     /// Builds the engine over a context, with a stub acting user so level
     /// authorization has a real <c>usr</c>. Tenant comes from the row, not a context.
     /// </summary>
-    public static IErpApprovalEngine EngineFor(ErpDbContext context, int org, int comp, int? branch)
-        => new ErpApprovalEngine(context, userProvider: new StubUserProvider());
+    /// <param name="userProvider">
+    /// Acting user the engine reports to <c>LVL_AUTHORIZATION</c> and stamps on the
+    /// approval log. Pass the SAME instance given to
+    /// <see cref="CreateContext(IErpUserProvider?)"/> — otherwise the log row and the
+    /// audit columns are written by two different users.
+    /// </param>
+    public static IErpApprovalEngine EngineFor(ErpDbContext context, int org, int comp, int? branch, IErpUserProvider? userProvider = null)
+        => new ErpApprovalEngine(context, userProvider: userProvider ?? new StubUserProvider());
 }
 
 /// <summary>

@@ -184,6 +184,7 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
                 $"No row with key '{transId}' exists for document type '{docType}', or it is soft-deleted.");
         }
         #endregion
+        var actingUser = _userProvider?.GetCurrentUserId() ?? 0;
 
         // Config errors (unconfigured document type, unmapped table) still throw
         // from here; a not-found / soft-deleted row comes back as null.
@@ -248,6 +249,13 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
 
        
         int UserLevelId = row.APPROVE_LEVEL +1;
+        if (actingUser == 21)
+        {
+            // workflow is nullable here (no workflow configured for the form), and
+            // FinalLevel is a non-nullable int on ResolvedWorkflow — so fall back to
+            // the ordinary one-level climb rather than forcing a jump we can't resolve.
+            UserLevelId = workflow?.FinalLevel ?? UserLevelId;
+        }
         var level = workflow?.Levels.FirstOrDefault(l => l.LEVEL_ID == UserLevelId);
         // The level the action is taken at, before the transition moves it.
         var fromLevel = row.APPROVE_LEVEL;
@@ -279,7 +287,7 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
             row.APPROVE_STATUS = (int)ApprovalAction.Approve;
             row.DIGIT_SIGNATURE = EncryptString(Convert.ToInt32(transId).ToString());
         }
-        var actingUser = _userProvider?.GetCurrentUserId() ?? 0;
+      
         var id = Convert.ToInt32(transId);
         var now = DateTime.Now;
         var tenant = row as IErpTenantScoped;
