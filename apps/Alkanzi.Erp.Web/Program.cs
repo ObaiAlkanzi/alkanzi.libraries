@@ -22,7 +22,7 @@ if (string.IsNullOrWhiteSpace(erpConnection))
         "or put it under ConnectionStrings:Erp in appsettings.Development.json.");
 }
 
-builder.Services.AddErpApprovalEngine<CurrentUser, CurrentCompany>();
+builder.Services.AddErpApprovalEngine<CurrentUser>();
 builder.Services.AddErpProcedureService();
 builder.Services.AddErpDbContext(erpConnection);
 

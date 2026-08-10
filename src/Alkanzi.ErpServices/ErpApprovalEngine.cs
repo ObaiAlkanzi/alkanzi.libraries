@@ -23,6 +23,10 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
     // ERP so DIGIT_SIGNATURE values verify on both sides.
     private const string EncryptionKey = "b14ca2e916";
 
+    // Savepoint taken before the row UPDATE when the caller owns the transaction, so a
+    // refused approval can undo its own work without touching theirs.
+    private const string ApprovalSavepoint = "alkanzi_erp_approval";
+
     private readonly DbContext _context;
     private readonly IErpProcedureService _procedures;
     private readonly IErpUserProvider? _userProvider;
@@ -282,7 +286,7 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
         // the final level keeps its own status. A full approval stamps a digital
         // signature on the row.
         if (action is ApprovalAction.Submit or ApprovalAction.Approve
-            && row.APPROVE_LEVEL == workflow?.FinalLevel)
+            && row.APPROVE_LEVEL >= workflow?.FinalLevel)
         {
             row.APPROVE_STATUS = (int)ApprovalAction.Approve;
             row.DIGIT_SIGNATURE = EncryptString(Convert.ToInt32(transId).ToString());
@@ -307,6 +311,34 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
         var transaction = ownTransaction
             ? await _context.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false)
             : null;
+
+        // When the CALLER owns the transaction the engine must not roll it back — that
+        // would discard their work too. But the row UPDATE below has already happened
+        // by the time the ERP procedure can report failure, so without a savepoint a
+        // failed approval leaves the mutated row pending in the caller's transaction,
+        // ready to be committed by whatever they do next. A savepoint undoes just the
+        // engine's part. Providers that do not support savepoints degrade to the old
+        // behaviour, where the caller is responsible for rolling back.
+        var ambient = ownTransaction ? null : _context.Database.CurrentTransaction;
+        var savepoint = false;
+        if (ambient?.SupportsSavepoints == true)
+        {
+            await ambient.CreateSavepointAsync(ApprovalSavepoint, cancellationToken).ConfigureAwait(false);
+            savepoint = true;
+        }
+
+        async Task UndoAsync()
+        {
+            if (transaction is not null)
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            }
+            else if (savepoint)
+            {
+                await ambient!.RollbackToSavepointAsync(ApprovalSavepoint, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         try
         {
             // Persist the transition on the transaction table itself: the approval
@@ -352,10 +384,9 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
 
             if (!process.Success)
             {
-                if (transaction is not null)
-                {
-                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-                }
+                // Undo the row UPDATE above: the procedure refused the transition, so
+                // the row must not keep the new status/level.
+                await UndoAsync().ConfigureAwait(false);
 
                 return ApprovalResult.ProcessFailed(row, process.Message);
             }
@@ -371,10 +402,7 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
         }
         catch
         {
-            if (transaction is not null)
-            {
-                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            }
+            await UndoAsync().ConfigureAwait(false);
 
             throw;
         }
@@ -588,7 +616,7 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
         }
 
         var forms = await QuerySqlAsync(
-            "SELECT ID, DOC_ID, LAST_LEVEL FROM SM_WORKFLOW_FORMS WHERE ID = :wf",
+            "SELECT ID, DOC_ID, LAST_LEVEL FROM SM_WORKFLOW_FORMS WHERE IS_DELETED = 0 AND ID = :wf",
             command => command.Parameters.Add(new OracleParameter("wf", OracleDbType.Int32) { Value = wfId }),
             reader => new SM_WORKFLOW_FORMS
             {
@@ -604,8 +632,19 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
             return null;
         }
 
+        // IS_DELETED matters here. Reconfiguring a workflow level soft-deletes the old
+        // row and inserts a new one, so a form can hold two rows for the same LEVEL_ID
+        // — the live one carrying UPDATE_SENTENCE and the retired one carrying NULL.
+        // Without this filter the caller's FirstOrDefault(LEVEL_ID == n) could pick the
+        // retired row, and the transition would silently skip DOC_STATUS.
+        //
+        // The secondary sort is defensive: where a form genuinely has two live rows for
+        // one level, prefer the one that actually carries an UPDATE_SENTENCE, then the
+        // newest, so the pick is deterministic rather than whatever order Oracle returns.
         var levels = await QuerySqlAsync(
-            "SELECT LEVEL_ID, UPDATE_SENTENCE, REMARKS FROM SM_WORKFLOW_FORM_LEVELS WHERE FORM_ID = :wf ORDER BY LEVEL_ID",
+            "SELECT LEVEL_ID, UPDATE_SENTENCE, REMARKS FROM SM_WORKFLOW_FORM_LEVELS " +
+            "WHERE FORM_ID = :wf AND (IS_DELETED IS NULL OR IS_DELETED != 1) " +
+            "ORDER BY LEVEL_ID, CASE WHEN UPDATE_SENTENCE IS NULL THEN 1 ELSE 0 END, ID DESC",
             command => command.Parameters.Add(new OracleParameter("wf", OracleDbType.Int32) { Value = wfId }),
             reader => new SM_WORKFLOW_FORM_LEVELS
             {

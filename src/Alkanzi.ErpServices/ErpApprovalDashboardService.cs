@@ -74,6 +74,177 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
         return rows;
     }
 
+    // --- Per-user pending approvals ---
+
+    // A user's levels: their security groups -> the workflow levels those groups are
+    // on -> the form -> the document type and its table. DISTINCT because the same
+    // (form, level) commonly arrives through several security groups.
+    private const string UserScopeSql = """
+        SELECT DISTINCT
+               C.ID            AS FORM_ID,
+               B.LEVEL_ID      AS LEVEL_ID,
+               C.NAME          AS WORKFLOW_NAME,
+               C.LAST_LEVEL    AS LAST_LEVEL,
+               C.TABLE_NAME    AS TABLE_NAME,
+               D.DOC_TYPE      AS DOC_TYPE,
+               D.DISPLAY_NAME  AS DISPLAY_NAME,
+               D.MAIN_DOC_TYPE AS MAIN_DOC_TYPE
+        FROM   SM_DIVISION_SECURITY_GROUPS_USERS G
+               JOIN SM_WORKFLOW_LVL_SECURITY_GROUPS B ON B.SECURITY_GROUP_ID = G.SECURITY_GROUP_ID
+               JOIN SM_WORKFLOW_FORMS C              ON C.ID = B.HDR_ID
+               JOIN FM_TRANSACTION_MENU D            ON D.ID = C.DOC_ID
+        WHERE  G.IS_DELETED = 0
+          AND  G.USER_ID = :p_user
+          AND  B.IS_DELETED = 0
+          AND  C.IS_DELETED = 0
+        """;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<UserApprovalScope>> GetUserScopeAsync(
+        int userId, CancellationToken cancellationToken = default)
+        => await QuerySqlAsync(
+            UserScopeSql,
+            command => command.Parameters.Add(new OracleParameter("p_user", OracleDbType.Int32) { Value = userId }),
+            reader => new UserApprovalScope(
+                Int(reader, "FORM_ID"),
+                Int(reader, "LEVEL_ID"),
+                Str(reader, "WORKFLOW_NAME"),
+                Int(reader, "LAST_LEVEL"),
+                Str(reader, "TABLE_NAME"),
+                Str(reader, "DOC_TYPE") ?? string.Empty,
+                Str(reader, "DISPLAY_NAME"),
+                Str(reader, "MAIN_DOC_TYPE")),
+            cancellationToken).ConfigureAwait(false);
+
+    // Oracle caps an IN list at 1000 entries; stay well under it.
+    private const int PairChunkSize = 250;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<ApprovalDashboardRow>> GetUserDataAsync(
+        int userId,
+        ApprovalDashboardFilter filter = ApprovalDashboardFilter.Pending,
+        CancellationToken cancellationToken = default)
+    {
+        var scope = await GetUserScopeAsync(userId, cancellationToken).ConfigureAwait(false);
+        if (scope.Count == 0)
+        {
+            return [];
+        }
+
+        // A form maps to exactly one document type, so its id is enough to attribute a
+        // transaction row back to its doc type without selecting DOC_TYPE from the
+        // table (which many transaction tables do not have).
+        var byForm = scope
+            .GroupBy(s => s.FormId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Group by table: one query per table instead of one per (doc type, level).
+        // The tables are heavily shared — PRF_TRANSACTIONS alone backs ~25 doc types —
+        // so this is the difference between a handful of round trips and a hundred.
+        var byTable = scope
+            .Where(s => IsSafeTableName(s.TableName))
+            .GroupBy(s => s.TableName!.Trim().ToUpperInvariant());
+
+        var rows = new List<ApprovalDashboardRow>();
+        foreach (var table in byTable)
+        {
+            var pairs = table
+                .Select(s => (Form: s.FormId, Level: s.LevelId))
+                .Distinct()
+                .ToList();
+
+            for (var i = 0; i < pairs.Count; i += PairChunkSize)
+            {
+                rows.AddRange(await QueryUserTableAsync(
+                    table.Key,
+                    pairs.GetRange(i, Math.Min(PairChunkSize, pairs.Count - i)),
+                    byForm,
+                    filter,
+                    cancellationToken).ConfigureAwait(false));
+            }
+        }
+
+        return rows;
+    }
+
+    // TABLE_NAME comes from ERP config and is interpolated into SQL, so it must be a
+    // plain identifier. Live data has at least one row whose TABLE_NAME carries a
+    // stray quote and tab ("\tPRF_TRANSACTIONS") — skip those rather than build
+    // broken (or injectable) SQL from them.
+    private static bool IsSafeTableName(string? tableName)
+    {
+        if (string.IsNullOrWhiteSpace(tableName))
+        {
+            return false;
+        }
+
+        return tableName.Trim().All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '$' or '#' or '.');
+    }
+
+    private async Task<List<ApprovalDashboardRow>> QueryUserTableAsync(
+        string tableName,
+        List<(int Form, int Level)> pairs,
+        Dictionary<int, UserApprovalScope> byForm,
+        ApprovalDashboardFilter filter,
+        CancellationToken cancellationToken)
+    {
+        var where = new List<string> { "(IS_DELETED IS NULL OR IS_DELETED != 1)" };
+        switch (filter)
+        {
+            case ApprovalDashboardFilter.Pending: where.Add("APPROVE_STATUS NOT IN (3, 4)"); break;   // 3 reject, 4 approve
+            case ApprovalDashboardFilter.Approved: where.Add("APPROVE_STATUS = 4"); break;
+            case ApprovalDashboardFilter.Rejected: where.Add("APPROVE_STATUS = 3"); break;
+        }
+
+        // Oracle's multi-column IN: the row is the user's only when BOTH the workflow
+        // and the level match. A null WORKFLOW_ID never matches, which is correct —
+        // there is no workflow to authorise against.
+        var tuples = string.Join(", ", pairs.Select((_, i) => $"(:w{i}, :l{i})"));
+        where.Add($"(WORKFLOW_ID, APPROVE_LEVEL) IN ({tuples})");
+
+        var sql =
+            "SELECT ID, DOC_DATE, APPROVE_STATUS, APPROVE_LEVEL, WORKFLOW_ID, CREATED_BY, CREATED_AT " +
+            $"FROM {tableName} WHERE {string.Join(" AND ", where)}";
+
+        try
+        {
+            return await QuerySqlAsync(
+                sql,
+                command =>
+                {
+                    for (var i = 0; i < pairs.Count; i++)
+                    {
+                        command.Parameters.Add(new OracleParameter($"w{i}", OracleDbType.Int32) { Value = pairs[i].Form });
+                        command.Parameters.Add(new OracleParameter($"l{i}", OracleDbType.Int32) { Value = pairs[i].Level });
+                    }
+                },
+                reader =>
+                {
+                    var formId = NullableInt(reader, "WORKFLOW_ID") ?? 0;
+                    byForm.TryGetValue(formId, out var s);
+
+                    return new ApprovalDashboardRow(
+                        Int(reader, "ID"),
+                        s?.DocType ?? string.Empty,
+                        NullableDate(reader, "DOC_DATE"),
+                        Int(reader, "APPROVE_STATUS"),
+                        Int(reader, "APPROVE_LEVEL"),
+                        formId,
+                        Int(reader, "CREATED_BY"),
+                        NullableDate(reader, "CREATED_AT") ?? default,
+                        s?.DisplayName,
+                        s?.MainDocType);
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OracleException)
+        {
+            // The table doesn't expose the expected approval columns — skip it rather
+            // than fail the whole dashboard, as GetDataAsync does.
+            return [];
+        }
+    }
+
     // The whole registry, read once with raw SQL.
     private Task<List<MenuRow>> LoadMenusAsync(CancellationToken cancellationToken)
         => QuerySqlAsync(

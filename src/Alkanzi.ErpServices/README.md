@@ -9,12 +9,15 @@ Oracle provider — no shared Alkanzi auditing library. Its approval engine,
 audit-stamping interceptor, soft-delete filters and contracts are all its own,
 so it can evolve without being pinned to another package.
 
-Two things live here:
+Three things live here:
 
 - **`ErpApprovalEngine`** — submit / approve / reject / rework any document
   type, dispatched to its transaction table for the current tenant. For
   workflow-bound documents it resolves the governing workflow, runs the level's
   `UPDATE_SENTENCE`, and appends to the approval log.
+- **`ErpApprovalDashboardService`** — read side of the same model: approval rows
+  across a set of document types, or the transactions actually waiting on one
+  user id.
 - **`ErpProcedureService`** — call Oracle stored procedures and functions over
   the same context connection.
 
@@ -42,6 +45,8 @@ IErpApprovalProcessService.cs   RunAsync — SM_APPROVE_PROCESS / SM_REJECT_PROC
 ErpApprovalProcessService.cs      transactional, commits on the procedure's success flag
 IErpApprovalDashboardService.cs GetDataAsync — approval rows across a user's accessible doc types
 ErpApprovalDashboardService.cs    resolves each doc type's table via FM_TRANSACTION_MENU;
+                                  GetUserScopeAsync / GetUserDataAsync — what a user id may
+                                  approve, and the rows actually waiting on them;
                                   GetDepartmentEmployeesAsync — PANEL.DEPARTMENT_EMPLOYEES panel
 ServiceCollectionExtensions.cs  AddErpApprovalEngine / AddErpProcedureService / AddErpApprovalProcessService
                                 AddErpApprovalDashboardService / AddErpDbContext
@@ -274,9 +279,44 @@ doc/tenant/user context (`mainDocType` = `FM_TRANSACTION_MENU.MAIN_DOC_TYPE`,
 `'message,flag'` (`1` success, `0` failure), and on a `0` flag rolls the whole
 action back and returns `ApprovalOutcome.ProcessFailed`.
 
-The EF row update, the `UPDATE_SENTENCE`, the procedure call, and the log write
-all run in **one transaction** the engine owns — or enlists in the caller's, if
-one is already open — so any failure undoes everything together.
+### What happens when it fails
+
+The row update, the `UPDATE_SENTENCE`, the procedure call and the log write all run
+in **one transaction** — the engine's own, or the caller's if one is already open.
+Failures arrive in two shapes:
+
+- **The ERP refuses the transition.** `IErpApprovalProcessService` converts every
+  Oracle error into a failed result, so this **never throws**. You get
+  `Status == false`, `Outcome == ApprovalOutcome.ProcessFailed`, and the ERP's own
+  text in `Message` (e.g. `ORA-20111: ...`).
+- **Something genuinely breaks** — a bad `UPDATE_SENTENCE`, the log write, the
+  commit. The exception propagates to you.
+
+Ordinary refusals — `NotFound`, `NotApprovable`, `AlreadyApproved`,
+`AlreadyRejected`, `NotAuthorized`, `NoWorkflow` — are results, not exceptions, and
+return before anything is written.
+
+So a host must check `Status` **and** catch:
+
+```csharp
+try
+{
+    var result = await approvals.SubmitAsync(docType, id, sgId: sgId);
+    if (!result.Status) return BadRequest($"{result.Outcome}: {result.Message}");
+}
+catch (Exception ex) { /* log; the engine has already undone its own work */ }
+```
+
+**Who rolls back.** When the engine opens the transaction it rolls the whole thing
+back on either kind of failure. When **you** opened it, the engine must not roll it
+back — that would discard your work — so it takes a **savepoint** before the row
+update and rolls back to it instead. Without that, a refused approval would leave
+the mutated `APPROVE_STATUS` / `APPROVE_LEVEL` pending in your transaction, and your
+next commit would persist a failed approval. On a provider without savepoint support
+this degrades to the old behaviour, where undoing is the caller's job.
+
+The simplest option remains: **don't open a transaction around the engine** unless
+you have other work to bundle atomically, and let it manage both paths itself.
 
 You can also call the service directly with a query you build yourself:
 
@@ -316,9 +356,61 @@ terminal — status 0/1/2), **`Approved`** (4), **`Rejected`** (3).
 
 It's **permission-scoped by doc type** (the caller passes the accessible menus), one
 query for the menus plus one per table (no N+1), and **generic** — a new approvable
-table just needs mapping on `ErpDbContext`, no dashboard change. `Id` / `CREATED_BY`
-/ `CREATED_AT` are read via `EF.Property`; a table shared by several doc types is
-filtered by `DOC_TYPE` so each menu sees only its own rows.
+table just needs mapping on `ErpDbContext`, no dashboard change. Every column is read
+by raw SQL on the resolved table name, so no entity type is required; a table shared
+by several doc types is filtered by `DOC_TYPE` so each menu sees only its own rows.
+
+### What is waiting on one user
+
+`GetDataAsync` answers "rows for these doc types". It does **not** answer "rows this
+user can act on" — for that, pass a user id:
+
+```csharp
+// The transactions actually sitting on this user's desk.
+var mine = await dashboard.GetUserDataAsync(userId);           // Pending by default
+
+// Optional: the (workflow form, level) pairs behind that list — useful for menus,
+// or for explaining why something is or isn't on it.
+var scope = await dashboard.GetUserScopeAsync(userId);
+// scope: FormId, LevelId, WorkflowName, LastLevel, TableName,
+//        DocType, DisplayName, MainDocType
+```
+
+A user reaches a level through `SM_DIVISION_SECURITY_GROUPS_USERS` →
+`SM_WORKFLOW_LVL_SECURITY_GROUPS` → `SM_WORKFLOW_FORMS`, and rows are then matched on
+**(`WORKFLOW_ID`, `APPROVE_LEVEL`)** — the form and the level together.
+
+Matching on document type alone is wrong twice over:
+
+- **One table serves many doc types.** `PRF_TRANSACTIONS` backs ~25 of them,
+  `FM_RECEIPTS_MASTER` and `FM_FUND_MASTER` around 10 each.
+- **One doc type runs under several workflow forms, at different levels.**
+  `serviceLPO` alone spans five forms sitting at levels 3, 4, 4, 5 and 5.
+
+So a doc-type filter hands back transactions the user has no authority over.
+`APPROVE_LEVEL` is the right half of the pair because it is exactly what the engine
+authorises against — `ApplyApprovalAsync` passes the row's current `APPROVE_LEVEL` to
+`APPROVAL_REVERT_PAK.LVL_AUTHORIZATION`, so the dashboard list and the approve button
+agree.
+
+Details worth knowing:
+
+- The same (form, level) commonly arrives through **several security groups**; they
+  are collapsed, so a transaction appears once.
+- Queries are grouped **one per table**, not one per doc type, using Oracle's
+  multi-column `IN ((:w0, :l0), …)`, chunked at 250 pairs. For a user with ~130
+  (form, level) pairs that is ~29 round trips rather than ~130.
+- Rows with a **null `WORKFLOW_ID`** are never returned — with no workflow there is no
+  level to authorise against.
+- A `TABLE_NAME` that is not a plain identifier is **skipped**, not interpolated into
+  SQL.
+- Pass a `filter` to widen beyond `Pending` — the same
+  `ApprovalDashboardFilter` values apply.
+
+> Take care that the user id reaching `GetUserDataAsync` is a real one. `USER_ID` is
+> just a number to this query, and a "missing user" sentinel can be a live row: in the
+> Fakhruddin ERP, `USER_ID = -1` genuinely exists in
+> `SM_DIVISION_SECURITY_GROUPS_USERS` and grants 66 (form, level) pairs.
 
 ### Department-employee panel
 
@@ -416,3 +508,36 @@ dotnet user-secrets --project tests/Alkanzi.ErpServices.OracleTests \
 
 dotnet test tests/Alkanzi.ErpServices.OracleTests
 ```
+
+## Version history
+
+### 4.0.3
+
+- **Fixed: an approval could advance the level without applying `DOC_STATUS`.**
+  The workflow levels were loaded without filtering `IS_DELETED`. Reconfiguring a
+  level soft-deletes the old row and inserts a new one, so a form can hold two rows
+  for the same `LEVEL_ID` — the live one carrying `UPDATE_SENTENCE`, the retired one
+  carrying `NULL`. The level lookup could pick the retired row, and the transition
+  would then move `APPROVE_LEVEL` (a bound parameter) while silently skipping
+  `DOC_STATUS` (part of the sentence). Levels are now filtered, and ordered so that a
+  form with two live rows for one level deterministically prefers the one that
+  carries a sentence. `SM_WORKFLOW_FORMS` is likewise filtered.
+
+  Symptom: a document climbs the chain but its `DOC_STATUS` stays where it was.
+  Rows that transitioned before the fix keep the stale status — each level only sets
+  its own status on transition, so a later approval will not repair an earlier miss.
+
+- **Fixed: a refused approval could leave its row update pending in a caller-owned
+  transaction.** The engine cannot roll back a transaction it does not own, so a
+  `ProcessFailed` used to return with the mutated `APPROVE_STATUS` / `APPROVE_LEVEL`
+  still pending — ready to be committed by whatever the caller did next. It now takes
+  a savepoint before the row update and rolls back to it. See
+  [What happens when it fails](#what-happens-when-it-fails).
+
+### 4.0.2
+
+Added `GetUserScopeAsync` / `GetUserDataAsync` to the approval dashboard —
+transactions waiting on a specific user id, matched on
+(`WORKFLOW_ID`, `APPROVE_LEVEL`).
+
+> Carries both bugs listed under 4.0.3. Prefer 4.0.3.

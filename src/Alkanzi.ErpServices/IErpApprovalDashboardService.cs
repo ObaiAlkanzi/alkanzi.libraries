@@ -35,6 +35,33 @@ public enum ApprovalDashboardFilter
 }
 
 /// <summary>
+/// One (workflow form, level) a user may act at, resolved from their security
+/// groups — the unit of "what can this user approve".
+/// </summary>
+/// <remarks>
+/// A user reaches a level through <c>SM_DIVISION_SECURITY_GROUPS_USERS</c> →
+/// <c>SM_WORKFLOW_LVL_SECURITY_GROUPS</c> → <c>SM_WORKFLOW_FORMS</c>. The same
+/// (form, level) can arrive through several security groups; those are collapsed.
+/// </remarks>
+/// <param name="FormId">The workflow form (<c>SM_WORKFLOW_FORMS.ID</c>) — matches a transaction's <c>WORKFLOW_ID</c>.</param>
+/// <param name="LevelId">The level in that form the user may act at — matches a transaction's <c>APPROVE_LEVEL</c>.</param>
+/// <param name="WorkflowName">The form's name, e.g. "Inventory LPO - IT".</param>
+/// <param name="LastLevel">The form's final level.</param>
+/// <param name="TableName">The transaction table the form's document type lives in.</param>
+/// <param name="DocType">The document type.</param>
+/// <param name="DisplayName">The document type's display name.</param>
+/// <param name="MainDocType">The parent/main document type, or null.</param>
+public sealed record UserApprovalScope(
+    int FormId,
+    int LevelId,
+    string? WorkflowName,
+    int LastLevel,
+    string? TableName,
+    string DocType,
+    string? DisplayName,
+    string? MainDocType);
+
+/// <summary>
 /// One row of the department-employee panel returned by
 /// <c>PANEL.DEPARTMENT_EMPLOYEES</c>: <c>ID</c>, <c>USER_ID</c>,
 /// <c>DEPARTMENT_NAME</c>, <c>EMPLOYEE</c>, <c>EMP_DEPARTMENT_ID</c>,
@@ -87,6 +114,46 @@ public interface IErpApprovalDashboardService
     Task<IReadOnlyList<ApprovalDashboardRow>> GetDataAsync(
         IEnumerable<string> docTypes,
         ApprovalDashboardFilter filter = ApprovalDashboardFilter.All,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The (workflow form, level) pairs a user may act at, resolved from their
+    /// security groups. Use it to build a menu, or to see why a transaction is or
+    /// is not on someone's list.
+    /// </summary>
+    /// <param name="userId">The user (<c>SM_DIVISION_SECURITY_GROUPS_USERS.USER_ID</c>).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<UserApprovalScope>> GetUserScopeAsync(
+        int userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Returns the transactions actually waiting on a user — the rows sitting at a
+    /// level that user's security groups authorise, in the workflow they authorise
+    /// it for.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Matching is on <b>(<c>WORKFLOW_ID</c>, <c>APPROVE_LEVEL</c>)</b>, not on
+    /// document type. Document type alone is wrong twice over: one table serves many
+    /// doc types (<c>PRF_TRANSACTIONS</c>, <c>FM_RECEIPTS_MASTER</c>), and one doc
+    /// type runs under several workflow forms with different levels — so a doc-type
+    /// filter returns transactions the user cannot act on. <c>APPROVE_LEVEL</c> is
+    /// the level authorisation is evaluated at, which is what
+    /// <see cref="IErpApprovalEngine.ApplyApprovalAsync"/> passes to
+    /// <c>APPROVAL_REVERT_PAK.LVL_AUTHORIZATION</c>.
+    /// </para>
+    /// <para>
+    /// Rows with a null <c>WORKFLOW_ID</c> are never returned: with no workflow there
+    /// is no level to authorise against.
+    /// </para>
+    /// </remarks>
+    /// <param name="userId">The user (<c>SM_DIVISION_SECURITY_GROUPS_USERS.USER_ID</c>).</param>
+    /// <param name="filter">Which rows to return by status (default <see cref="ApprovalDashboardFilter.Pending"/>).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<ApprovalDashboardRow>> GetUserDataAsync(
+        int userId,
+        ApprovalDashboardFilter filter = ApprovalDashboardFilter.Pending,
         CancellationToken cancellationToken = default);
 
     /// <summary>

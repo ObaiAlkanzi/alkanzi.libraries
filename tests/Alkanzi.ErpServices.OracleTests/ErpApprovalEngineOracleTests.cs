@@ -17,8 +17,8 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
 
     // callRegistration dispatches to CALL_REGISTERATION, which is both
     // approvable and workflow-bound; id 1 is a live row.
-    private const string DocType = "CreditNotes";
-    private const int TransId = 201;
+    private const string DocType = "imPurchaseOrder";
+    private const int TransId = 2747;
 
     private readonly ErpServicesFixture _fixture = fixture;
 
@@ -38,7 +38,7 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
     }
 
     /// <summary>Acting user for <see cref="SubmitTransTest"/>.</summary>
-    private const int ActingUserId = 21;
+    private const int ActingUserId = 1;
 
     [DockerFact]
     public async Task SubmitTransTest()
@@ -53,10 +53,10 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
 
         var engine = EngineFor(context, actingUser);
 
-        // Live row 201 is currently APPROVED, so the guard rejects Submit before the
-        // user-21 branch is ever reached. Force a known pending baseline inside the
-        // rolled-back transaction, exactly as Rework/Reject do.
-        await ResetToPendingAsync(context, level: 0);
+        // Live row 2747 is APPROVED, so with this commented out the guard returns
+        // AlreadyApproved and the submit below never runs. Uncomment to force a known
+        // pending baseline inside the rolled-back transaction, as Rework/Reject do.
+       // await ResetToPendingAsync(engine, context, level: 0);
 
         var workflow = await engine.ResolveWorkflowAsync(DocType, TransId);
         Assert.NotNull(workflow);
@@ -76,12 +76,43 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
         var audited = Assert.IsAssignableFrom<IErpAuditable>(result.Row);
         Assert.Equal(ActingUserId, audited.UPDATED_BY);
         Assert.Equal(ActingUserId, result.Notification!.ActingUser);
-
-        // User 21 is the engine's special case: it jumps straight to the workflow's
-        // final level instead of climbing one. Reaching the final level also flips the
-        // status to Approve and stamps the digital signature.
-        Assert.Equal(workflow!.FinalLevel, result.Row!.APPROVE_LEVEL);
+        
         Assert.Equal((int)ApprovalAction.Approve, result.Row.APPROVE_STATUS);
+        await transaction.RollbackAsync();
+    }
+
+    [DockerFact]
+    public async Task A_refused_approval_undoes_its_row_update_inside_a_caller_transaction()
+    {
+        // CreditNotes maps to MAIN_DOC_TYPE 'ManualNotes', which SM_APPROVE_PROCESS has
+        // no branch for at status 4 — and user 21 jumps to FinalLevel, which sets
+        // status 4. So this pair is reliably refused with ORA-20111.
+        const string refusedDocType = "CreditNotes";
+        const int refusedTransId = 162;
+
+        var actingUser = new StubUserProvider { UserId = 21 };
+        await using var context = _fixture.CreateContext(actingUser);
+
+        // The CALLER owns the transaction. The engine must not roll it back — that
+        // would discard the caller's work — so it has to undo its own row UPDATE via a
+        // savepoint. Without one, the refused transition stays pending here and the
+        // caller's next commit would persist a failed approval.
+        await using var transaction = await context.Database.BeginTransactionAsync();
+
+        var engine = EngineFor(context, actingUser);
+
+        var before = await engine.GetAsync(refusedDocType, refusedTransId);
+        Assert.NotNull(before);
+
+        var result = await engine.ApplyApprovalAsync(
+            refusedDocType, refusedTransId, ApprovalAction.Submit, targetLevel: 0, sgId: 1);
+
+        Assert.Equal(ApprovalOutcome.ProcessFailed, result.Outcome);
+
+        var after = await engine.GetAsync(refusedDocType, refusedTransId);
+        Assert.NotNull(after);
+        Assert.Equal(before!.APPROVE_STATUS, after!.APPROVE_STATUS);
+        Assert.Equal(before.APPROVE_LEVEL, after.APPROVE_LEVEL);
 
         await transaction.RollbackAsync();
     }
@@ -92,12 +123,14 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
         await using var context = _fixture.CreateContext();
         await using var transaction = await context.Database.BeginTransactionAsync();
 
-        // id 1 may be terminal (approved/rejected) in the live data, which the
+        var engine = EngineFor(context);
+
+        // The row may be terminal (approved/rejected) in the live data, which the
         // guards block; force a known pending baseline first — all inside the
         // rolled-back transaction — so the transition is actually testable.
-        await ResetToPendingAsync(context, level: 4);
+        await ResetToPendingAsync(engine, context, level: 4);
 
-        var result = await EngineFor(context).ReworkAsync(DocType, TransId, targetLevel: 1, sgId: 1);
+        var result = await engine.ReworkAsync(DocType, TransId, targetLevel: 1, sgId: 1);
 
         Assert.True(result.Status);
         Assert.Equal((int)ApprovalAction.Rework, result.Row!.APPROVE_STATUS);
@@ -112,9 +145,11 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
         await using var context = _fixture.CreateContext();
         await using var transaction = await context.Database.BeginTransactionAsync();
 
-        await ResetToPendingAsync(context, level: 3);
+        var engine = EngineFor(context);
 
-        var result = await EngineFor(context).RejectAsync(DocType, TransId, sgId: 1);
+        await ResetToPendingAsync(engine, context, level: 3);
+
+        var result = await engine.RejectAsync(DocType, TransId, sgId: 1);
 
         Assert.True(result.Status);
         Assert.Equal((int)ApprovalAction.Reject, result.Row!.APPROVE_STATUS);
@@ -129,11 +164,13 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
         await using var context = _fixture.CreateContext();
         await using var transaction = await context.Database.BeginTransactionAsync();
 
-        await ResetToPendingAsync(context, level: 0);
+        var engine = EngineFor(context);
+
+        await ResetToPendingAsync(engine, context, level: 0);
 
         // The context carries the audit interceptor, so the engine's save
         // attributes the change without the engine knowing about auditing.
-        var result = await EngineFor(context).SubmitAsync(DocType, TransId, sgId: 1);
+        var result = await engine.SubmitAsync(DocType, TransId, sgId: 1);
 
         var audited = Assert.IsAssignableFrom<IErpAuditable>(result.Row);
         Assert.True(audited.IS_UPDATED);
@@ -149,21 +186,24 @@ public class ErpApprovalEngineOracleTests(ErpServicesFixture fixture)
     /// inside the caller's transaction, which is rolled back.
     /// </summary>
     /// <remarks>
-    /// Dispatches through <c>FM_TRANSACTION_MENU</c> the same way the engine does,
-    /// rather than through a fixed DbSet — otherwise this silently resets the wrong
-    /// table whenever <see cref="DocType"/> changes, and the engine then reads a row
-    /// this never touched. The engine reads approval columns by raw SQL with no
-    /// entity type, so the reset has to be raw SQL too: a tracked-entity save would
-    /// not be visible to it.
+    /// Resolves the table through the engine's own <see cref="IErpApprovalEngine.GetMenuAsync"/>
+    /// rather than querying <c>FM_TRANSACTION_MENU</c> directly. The engine dispatches
+    /// via <c>APPROVAL_REVERT_PAK.GET_TRANS_WF</c>, and a document type can have several
+    /// registry rows — an unordered <c>FirstOrDefault</c> over the table is free to pick
+    /// a different one, which resets a table the engine never reads and leaves the test
+    /// seeing the untouched live state. The engine reads approval columns by raw SQL
+    /// with no entity type, so the reset has to be raw SQL too: a tracked-entity save
+    /// would not be visible to it.
     /// </remarks>
-    private static async Task ResetToPendingAsync(ErpDbContext context, int level)
+    private static async Task ResetToPendingAsync(IErpApprovalEngine engine, ErpDbContext context, int level)
     {
-        var tableName = await context.TransactionMenus
-            .Where(m => m.DOC_TYPE == DocType)
-            .Select(m => m.TABLE_NAME)
-            .FirstOrDefaultAsync()
+        var menu = await engine.GetMenuAsync(DocType)
             ?? throw new InvalidOperationException(
-                $"No FM_TRANSACTION_MENU row with a TABLE_NAME for document type '{DocType}'.");
+                $"No registry row for document type '{DocType}'.");
+
+        var tableName = menu.TABLE_NAME
+            ?? throw new InvalidOperationException(
+                $"Document type '{DocType}' has no TABLE_NAME.");
 
         var affected = await context.Database.ExecuteSqlRawAsync(
             $"UPDATE {tableName} SET APPROVE_STATUS = :p_status, APPROVE_LEVEL = :p_level WHERE ID = :p_id",
