@@ -47,4 +47,14 @@
     <PackageReference Include="Oracle.EntityFrameworkCore" Version="10.23.26200" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Modules\Leasing\" />
+    <Folder Include="Modules\Legal\" />
+    <Folder Include="Modules\Finance\" />
+    <Folder Include="Modules\Inventory\" />
+    <Folder Include="Modules\CRM\" />
+    <Folder Include="Modules\HRMS\" />
+    <Folder Include="Modules\Security\Entities\" />
+  </ItemGroup>
+
 </Project>

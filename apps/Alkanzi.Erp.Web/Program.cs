@@ -19,12 +19,19 @@ if (string.IsNullOrWhiteSpace(erpConnection))
     throw new InvalidOperationException(
         "No 'Erp' connection string configured. Set it before running, e.g.\n" +
         "  dotnet user-secrets set \"ConnectionStrings:Erp\" \"User Id=...;Password=...;Data Source=...\"\n" +
-        "or put it under ConnectionStrings:Erp in appsettings.Development.json.");
+        "or put it under ConnectionStrings:Erp in appsettings.Development.json.\n" +
+        "In Docker, set ERP_CONNECTION_STRING in the .env file next to docker-compose.yml\n" +
+        "(see .env.example); compose passes it through as ConnectionStrings__Erp.");
 }
 
 builder.Services.AddErpApprovalEngine<CurrentUser>();
 builder.Services.AddErpProcedureService();
 builder.Services.AddErpDbContext(erpConnection);
+
+// Liveness only — deliberately no Oracle probe. The container healthcheck polls
+// this every few seconds, and an ERP blip should not make Docker tear down and
+// restart a web app that is otherwise perfectly healthy.
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -39,6 +46,11 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
+
+// Probed by the container HEALTHCHECK over plain HTTP on the loopback. The
+// HTTPS redirection above is inert in the container (no HTTPS port is bound),
+// so the probe reaches this rather than getting a 307.
+app.MapHealthChecks("/healthz").AllowAnonymous();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

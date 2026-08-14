@@ -37,6 +37,9 @@ coverage*.info
 ## Claude Code (machine-local settings)
 .claude/settings.local.json
 
+## Docker (local secrets for docker-compose)
+.env
+
 ## Misc
 *.log
 *.tmp

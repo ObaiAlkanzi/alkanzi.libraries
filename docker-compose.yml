@@ -1,0 +1,32 @@
+services:
+  erp-web:
+    build:
+      context: .
+      dockerfile: apps/Alkanzi.Erp.Web/Dockerfile
+    image: alkanzi-erp-web:local
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Program.cs reads ConnectionStrings:Erp and refuses to start without it.
+      # The value comes from ERP_CONNECTION_STRING in a local .env file (see
+      # .env.example) — it is never baked into the image.
+      #
+      # `:-` and not `:?`. Compose interpolates the whole file before any command
+      # runs, so a required-variable marker here fails `docker compose build`
+      # too — and building the image is exactly the step that should not need
+      # the production secret. Left unset, the app stops on startup with its own
+      # message naming the missing key.
+      ConnectionStrings__Erp: ${ERP_CONNECTION_STRING:-}
+      Logging__LogLevel__Default: Information
+    volumes:
+      # Blazor Server's antiforgery tokens and circuit state are signed with the
+      # Data Protection key ring. Without this volume every restart invalidates
+      # them and open pages start erroring until users hard-refresh.
+      - erp-dataprotection-keys:/home/app/.aspnet/DataProtection-Keys
+    restart: unless-stopped
+    # Liveness comes from the HEALTHCHECK baked into the Dockerfile, which polls
+    # /healthz. `docker compose ps` reports it; nothing here needs to repeat it.
+
+volumes:
+  erp-dataprotection-keys:

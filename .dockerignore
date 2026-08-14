@@ -1,0 +1,32 @@
+# Keep the build context small and, more importantly, keep host build output out
+# of the image — a bin/ or obj/ copied in from Windows poisons the Linux restore.
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+**/*.suo
+
+.git/
+.github/
+.claude/
+artifacts/
+tests/
+
+**/*.nupkg
+**/*.snupkg
+**/TestResults/
+**/*.trx
+**/coverage*.*
+
+# Never bake local config or secrets into an image layer.
+**/appsettings.Development.json
+**/appsettings.Local.json
+.env
+*.log
+*.tmp
+
+Dockerfile*
+docker-compose*.yml
+.dockerignore

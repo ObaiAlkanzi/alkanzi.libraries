@@ -56,7 +56,7 @@ public class ErpApprovalDashboardOracleTests(ErpServicesFixture fixture)
     }
 
     // The user from userTrans.md — has levels across many workflow forms.
-    private const int UserId = 2;
+    private const int UserId = 2144;
 
     [DockerFact]
     public async Task GetUserScopeAsync_resolves_the_users_levels()
