@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>Alkanzi.SearchEngine</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Obai Alkanzi</Authors>
+    <Description>A provider-based, permission-aware search engine for the Fakhruddin ERP. Fans a query out across registered ISearchProviders (one per entity family), merges, ranks and pages the hits. Ships a generic EF Core provider for any TRANSACTION_BASE entity via the ISearchableTransaction seam.</Description>
+    <PackageTags>search;erp;dotnet;efcore;entityframeworkcore;provider;fulltext</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/ObaiAlkanzi/alkanzi.libraries</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/ObaiAlkanzi/alkanzi.libraries</PackageProjectUrl>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!-- Microsoft.Extensions.DependencyInjection.Abstractions comes transitively via
+       EntityFrameworkCore (Caching.Memory); no explicit reference needed. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[8.0.11,11.0.0)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[10.0.0,11.0.0)" />
+  </ItemGroup>
+
+</Project>
