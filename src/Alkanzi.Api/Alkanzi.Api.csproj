@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Alkanzi.Api</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Delivery layer: controllers depend on Application; DataAccess is referenced only to
+         compose the object graph at startup (composition root). -->
+    <ProjectReference Include="..\Alkanzi.Application\Alkanzi.Application.csproj" />
+    <ProjectReference Include="..\Alkanzi.DataAccess\Alkanzi.DataAccess.csproj" />
+  </ItemGroup>
+
+</Project>

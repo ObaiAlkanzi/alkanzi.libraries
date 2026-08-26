@@ -1,0 +1,3944 @@
+/* ============================================================
+       Asset Panel — sidebar shell, KPI strip, inventory + records
+       Inspired by the assetPanel.png mock.
+       ============================================================ */
+/* Base font (IBM Plex Sans) is self-hosted and loaded globally via _standalone
+   (wwwroot/css/ibm-plex-sans.css) — no external @import needed here. */
+
+
+:root {
+    --ap-bg: #f4f6fa;
+    --ap-side-bg: #ffffff;
+    --ap-side-border: #e9ebf1;
+    --ap-side-text: #6a6e7d;
+    --ap-side-text-2: #a3a8b8;
+    --ap-side-active-bg: #ffffff;
+    --ap-side-active: #11142b;
+    --ap-surface: #ffffff;
+    --ap-inset: #f8fafc;
+    --ap-border: #e4e7ee;
+    --ap-text: #2d3344;
+    /*--ap-heading: #11142b;*/
+    --ap-heading: #494848;
+    --ap-muted: #68696d;
+    /* Material Blue accent — harmonized with dx.material.blue.light */
+    --ap-primary: #1976d2;
+    --ap-primary-2: #42a5f5;
+    /* Material elevation tokens */
+    --ap-elev-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+    --ap-elev-2: 0 4px 10px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.08);
+    --ap-accent: #ff8c47;
+    --ap-success: #1ea672;
+    --ap-success-tint: rgba(30, 166, 114, 0.12);
+    --ap-warn: #d97706;
+    --ap-warn-tint: #ed7f0096;
+    /*--ap-warn-tint: rgba(217, 119, 6, 0.12);*/
+    --ap-danger: #dc2626;
+    --ap-danger-tint: rgba(220, 38, 38, 0.12);
+    --ap-info: #2563eb;
+    --ap-info-tint: #f9e490;
+    /*--ap-info-tint: rgba(37, 99, 235, 0.12);*/
+    --ap-r: 6px;
+    --ap-r-lg: 7px;
+    --body-bg: #f3f4f6;
+}
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--body-bg) !important;
+}
+.dx-datagrid .dx-datagrid-rowsview .dx-freespace-row td.dx-pointer-events-none{
+    border:0px;
+}
+.dx-drawer-content {
+    background-color: var(--body-bg) !important;
+}
+.asset-panel {
+    /* Drawer manages its own internal layout — keep the panel as a plain block
+       so the drawer can size to viewport width without inheriting a flex row. */
+    display: block;
+    min-height: 100vh;
+    width: 100%;
+    max-width: 100vw;
+    /* clip (not hidden) so it doesn't become a scroll container and break the
+       sticky toolbar; still prevents horizontal overflow from wide grids. */
+    overflow-x: clip;
+    background: var(--ap-bg);
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: var(--ap-text);
+    font-size: 13px;
+    line-height: 18px;
+    /* Crisp text rendering across the panel. */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* ==================== Sidebar (off-white, light) ==================== */
+.ap-side {
+    width: 190px;
+    flex-shrink: 0;
+    background: var(--ap-side-bg);
+    color: var(--ap-side-text);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 14px 16px;
+    border-right: 1px solid var(--ap-side-border);
+}
+
+.ap-brand {
+    padding: 0 4px 26px;
+}
+
+.ap-brand-mark {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    width: 26px;
+    height: 26px;
+}
+
+.ap-brand-dot {
+    background: #11142b;
+    border-radius: 2px;
+    width: 100%;
+    height: 100%;
+}
+
+    .ap-brand-dot:nth-child(2) {
+        background: var(--ap-primary);
+    }
+
+    .ap-brand-dot:nth-child(3) {
+        background: var(--ap-primary-2);
+    }
+
+.ap-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+}
+
+.ap-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 13px;
+    border-radius: 8px;
+    color: var(--ap-side-text);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    transition: background-color .12s ease, color .12s ease, border-color .12s ease;
+}
+
+    .ap-nav-item .dx-icon {
+        font-size: 15px;
+        color: var(--ap-side-text-2);
+        width: 16px;
+        flex-shrink: 0;
+    }
+
+    .ap-nav-item:hover {
+        color: var(--ap-side-active);
+        background: rgba(255,255,255,0.5);
+    }
+
+        .ap-nav-item:hover .dx-icon {
+            color: var(--ap-side-active);
+        }
+
+    .ap-nav-item.is-active {
+        background: var(--ap-side-active-bg);
+        color: var(--ap-side-active);
+        border-color: var(--ap-side-border);
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgba(17,20,43,0.04);
+    }
+
+        .ap-nav-item.is-active .dx-icon {
+            color: var(--ap-primary);
+        }
+
+.ap-new-order {
+    margin-top: 22px;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: #11142b;
+    color: #fff;
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    box-shadow: 0 4px 10px -2px rgba(17,20,43,0.20);
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+
+    .ap-new-order:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 14px -2px rgba(17,20,43,0.28);
+    }
+
+    .ap-new-order .dx-icon {
+        font-size: 13px;
+    }
+
+.ap-logout {
+    margin-top: 12px;
+    padding: 7px 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ap-side-text-2);
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+    .ap-logout:hover {
+        color: var(--ap-side-active);
+        background: rgba(0,0,0,0.04);
+    }
+
+    .ap-logout .dx-icon {
+        font-size: 13px;
+    }
+
+/* ==================== Main ==================== */
+.ap-main {
+    flex: 1;
+    padding: 7px;
+    min-width: 0;
+}
+
+/* ==================== dxDrawer shell (wraps side + main) ==================== */
+/* The dx-drawer directive applies its own .dx-drawer-* classes to .ap-shell.
+   Constrain it to viewport width and make sure its inner panes don't expand
+   their parent (wide grids should scroll inside, not push the page). */
+.ap-shell {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+    .ap-shell .dx-drawer-wrapper {
+        min-height: 100vh;
+        width: 100%;
+    }
+
+    .ap-shell .dx-drawer-panel-content {
+        min-height: 100vh;
+        min-width: 0;
+        /* Critical: lets wide children (grids, charts) scroll inside the pane
+           instead of stretching the drawer wider than the viewport. */
+        overflow-x: auto;
+    }
+
+/* The dxDrawer panel hosts the existing .ap-side block — strip its own
+       border/background so .ap-side keeps owning the visual styling. */
+.ap-shell .dx-drawer-panel {
+    background: transparent;
+    border: 0;
+}
+
+/* Main inside the drawer must not contribute extra width — keep its padding
+       but enforce a 0 min-width so its flex/grid children can shrink. */
+.ap-shell .dx-drawer-panel-content > .ap-main {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* ==================== Hero sidebar toggle ==================== */
+.ap-hero-toggle {
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    width: 44px;
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--ap-heading);
+    transition: border-color .12s ease, background-color .12s ease, transform .12s ease;
+    flex-shrink: 0;
+}
+
+    .ap-hero-toggle:hover {
+        background: var(--ap-inset);
+        border-color: #d6dae3;
+    }
+
+    .ap-hero-toggle:active {
+        transform: scale(0.96);
+    }
+
+    .ap-hero-toggle .dx-icon {
+        font-size: 18px;
+    }
+
+/* ==================== Top hero (search + icons) ==================== */
+.ap-hero {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+/* ===== Hero brand block — gives the screen a clear identity/title ===== */
+.ap-hero-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-right: 4px;
+    flex-shrink: 0;
+}
+
+.ap-hero-brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--ap-primary), var(--ap-primary-2));
+    box-shadow: 0 6px 16px -6px rgba(25, 118, 210, 0.6);
+}
+
+.ap-hero-brand-text {
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.ap-hero-brand-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--ap-heading);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+.ap-hero-brand-sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--ap-muted);
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+.ap-hero-brand-dot {
+    color: var(--ap-border);
+}
+
+/* On narrow viewports drop the title text, keep the mark */
+@media (max-width: 760px) {
+    .ap-hero-brand-text {
+        display: none;
+    }
+}
+
+/* ============================================================
+   ERP-style top bar (matches site.js #mainToolbar) — dark navy
+   bar with a global search box + notifications + user profile.
+   Scoped to .ap-hero--erp so the Asset Panel hero is untouched.
+   ============================================================ */
+.ap-hero--erp {
+    align-items: center;
+    gap: 14px;
+    padding: 2px 16px;
+    background: #20374e;
+    border-radius: 0px;
+    /*box-shadow: 0 8px 22px -12px rgba(15, 23, 42, 0.55);*/
+}
+
+/* When the bar is a dxToolbar (mainToolbar) rather than a flex <header>. */
+.ap-erp-toolbar.dx-toolbar {
+    background: #20374e;
+    margin-bottom: 16px;
+}
+
+    .ap-erp-toolbar .dx-toolbar-items-container {
+        min-height: 52px;
+    }
+
+    /* Vertically centre each item and give the right-hand cluster breathing room. */
+    .ap-erp-toolbar .dx-toolbar-item-content {
+        display: flex;
+        align-items: center;
+    }
+
+    .ap-erp-toolbar .dx-toolbar-after > .dx-toolbar-item {
+        padding-left: 10px;
+    }
+
+    /* Search box sits just after the brand. */
+    .ap-erp-toolbar .ap-tb-search {
+        padding-left: 6px;
+    }
+
+.ap-hero--erp .ap-hero-brand-title { color: #fff; }
+.ap-hero--erp .ap-hero-brand-sub { color: rgba(255, 255, 255, 0.60); }
+.ap-hero--erp .ap-hero-brand-dot { color: rgba(255, 255, 255, 0.28); }
+
+/* Search box — wide, dark (ERP .searchBox: #122b45, white text) */
+.ap-hero-search-dx {
+    flex: 1 1 auto;
+    max-width: 560px;
+    min-width: 0;
+}
+
+.ap-hero-searchbox.dx-texteditor.dx-editor-filled {
+    background: #122b45;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+    .ap-hero-searchbox.dx-texteditor.dx-editor-filled::after { display: none; }
+
+    .ap-hero-searchbox .dx-texteditor-input { color: #fff; }
+
+    .ap-hero-searchbox .dx-placeholder { color: rgba(255, 255, 255, 0.5); }
+
+    .ap-hero-searchbox .dx-icon { color: rgba(255, 255, 255, 0.75) !important; }
+
+    .ap-hero-searchbox.dx-state-hover { border-color: rgba(255, 255, 255, 0.22); }
+
+    .ap-hero-searchbox.dx-state-focused {
+        border-color: var(--ap-primary-2, #42a5f5);
+        box-shadow: 0 0 0 3px rgba(66, 165, 245, 0.25);
+    }
+
+/* userRole cluster (notifications + profile) */
+.ap-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.ap-hero--erp .ap-hero-icon {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #fff;
+    width: 42px;
+    height: 42px;
+}
+
+    .ap-hero--erp .ap-hero-icon:hover {
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(255, 255, 255, 0.32);
+        color: #fff;
+        box-shadow: none;
+    }
+
+.ap-hero-bell { position: relative; }
+
+.ap-hero-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--ap-danger, #dc2626);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    border: 2px solid #20374e;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.ap-hero--erp .ap-hero-user {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    padding: 4px 12px 4px 4px;
+    gap: 9px;
+    max-width: none;
+}
+
+    .ap-hero--erp .ap-hero-user:hover {
+        background: rgba(255, 255, 255, 0.13);
+        border-color: rgba(255, 255, 255, 0.28);
+    }
+
+.ap-hero--erp .ap-hero-avatar {
+    width: 34px;
+    height: 34px;
+    box-shadow: none;
+}
+
+    .ap-hero--erp .ap-hero-avatar i { font-size: 15px; }
+
+    .ap-hero--erp .ap-hero-avatar::after { display: none; }
+
+.ap-hero--erp .ap-hero-user-hi { color: rgba(255, 255, 255, 0.6); }
+.ap-hero--erp .ap-hero-user-name { color: #fff; }
+.ap-hero--erp .ap-hero-user-caret { color: rgba(255, 255, 255, 0.6); }
+
+@media (max-width: 860px) {
+    .ap-hero--erp .ap-hero-user-meta { display: none; }
+}
+
+/* ---- Header search dropdown items (rendered in a body-level overlay) ---- */
+.ap-search-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 0;
+}
+
+.ap-search-item-ic {
+    width: 26px;
+    flex-shrink: 0;
+    text-align: center;
+    color: var(--ap-primary, #1976d2);
+    font-size: 14px;
+}
+
+.ap-search-item-b { flex: 1; min-width: 0; }
+
+.ap-search-item-t {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ap-heading, #11142b);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ap-search-item-s {
+    font-size: 11.5px;
+    color: var(--ap-muted, #68696d);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ap-search-item-v {
+    flex-shrink: 0;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--ap-success, #1ea672);
+    white-space: nowrap;
+}
+
+/* ---- Notification popover (body-level overlay) ---- */
+.ap-notif-pop-head {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ap-heading, #11142b);
+    padding: 2px 4px 10px;
+    border-bottom: 1px solid var(--ap-border, #e4e7ee);
+}
+
+.ap-notif-pop-list { margin-top: 6px; }
+
+.ap-notif-item {
+    display: flex;
+    gap: 10px;
+    padding: 6px 2px;
+}
+
+.ap-notif-item-ic {
+    font-size: 16px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.ap-notif-item-b { flex: 1; min-width: 0; }
+
+.ap-notif-item-t {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ap-heading, #11142b);
+}
+
+.ap-notif-item-m {
+    font-size: 12px;
+    color: var(--ap-muted, #68696d);
+    line-height: 1.35;
+}
+
+.ap-notif-item--unread .ap-notif-item-t::after {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ap-primary, #1976d2);
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* ---- User profile popover (body-level overlay) ---- */
+.ap-user-pop-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 2px 2px 12px;
+    border-bottom: 1px solid var(--ap-border, #e4e7ee);
+}
+
+.ap-user-pop-avatar {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #42a5f5, #1976d2);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+    .ap-user-pop-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.ap-user-pop-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ap-heading, #11142b);
+}
+
+.ap-user-pop-sub {
+    font-size: 12px;
+    color: var(--ap-muted, #68696d);
+    margin-top: 1px;
+}
+
+.ap-user-pop-acts {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 8px;
+}
+
+.ap-user-pop-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 9px 8px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ap-text, #2d3344);
+    cursor: pointer;
+    text-align: left;
+}
+
+    .ap-user-pop-btn:hover { background: var(--ap-inset, #f8fafc); color: var(--ap-primary, #1976d2); }
+
+    .ap-user-pop-btn i { width: 16px; text-align: center; color: var(--ap-muted, #68696d); }
+
+    .ap-user-pop-btn:hover i { color: var(--ap-primary, #1976d2); }
+
+.ap-hero-search {
+    flex: 1 1 auto;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    transition: border-color .12s ease, box-shadow .12s ease;
+}
+
+    .ap-hero-search:focus-within {
+        border-color: var(--ap-primary);
+        box-shadow: 0 0 0 3px rgba(79, 87, 245, 0.10);
+    }
+
+    .ap-hero-search .dx-icon {
+        color: var(--ap-muted);
+        font-size: 15px;
+        margin-right: 8px;
+    }
+
+    .ap-hero-search input {
+        border: 0;
+        outline: 0;
+        flex: 1;
+        background: transparent;
+        font-size: 13px;
+        color: var(--ap-text);
+        padding: 11px 0;
+    }
+
+        .ap-hero-search input::placeholder {
+            color: var(--ap-muted);
+        }
+
+/* ===== Notification bell — circular icon button (Material) ===== */
+.ap-hero-icon {
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--ap-heading);
+    transition: border-color .18s ease, background-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+    .ap-hero-icon:hover {
+        background: rgba(25, 118, 210, 0.08);
+        border-color: var(--ap-primary-2);
+        color: var(--ap-primary);
+        box-shadow: 0 6px 16px -6px rgba(25, 118, 210, 0.55);
+    }
+
+    .ap-hero-icon:active {
+        transform: scale(0.94);
+    }
+
+    .ap-hero-icon .dx-icon {
+        font-size: 17px;
+        color: inherit;
+        transform-origin: 50% 4px;
+    }
+
+    .ap-hero-icon:hover .dx-icon {
+        animation: ap-bell-shake .6s ease;
+    }
+
+@keyframes ap-bell-shake {
+    0%, 100% { transform: rotate(0); }
+    20%      { transform: rotate(13deg); }
+    40%      { transform: rotate(-11deg); }
+    60%      { transform: rotate(7deg); }
+    80%      { transform: rotate(-4deg); }
+}
+
+/* Unread indicator — pulsing dot */
+.ap-hero-dot {
+    position: absolute;
+    top: 8px;
+    right: 9px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--ap-danger);
+    border: 2px solid var(--ap-surface);
+    animation: ap-notif-pulse 2s infinite;
+}
+
+@keyframes ap-notif-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55); }
+    70%  { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+}
+
+/* ===== Profile avatar (gradient, online status, initials) ===== */
+.ap-hero-avatar {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #42a5f5, #1976d2);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 3px 8px -2px rgba(25, 118, 210, 0.5);
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+    /* Online status dot */
+    .ap-hero-avatar::after {
+        content: '';
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--ap-success);
+        border: 2px solid var(--ap-surface);
+    }
+
+    .ap-hero-avatar .dx-icon {
+        font-size: 16px;
+    }
+
+    .ap-hero-avatar img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+        display: block;
+    }
+
+.ap-hero-initials {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+/* User block (avatar + name + caret) */
+.ap-hero-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 12px 4px 4px;
+    background: var(--ap-surface);
+    /*border: 1px solid var(--ap-border);*/
+    /*border-radius: 999px;*/
+    max-width: 240px;
+    cursor: pointer;
+    transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+  /*  .ap-hero-user:hover {
+        border-color: var(--ap-primary-2);
+        box-shadow: 0 6px 16px -8px rgba(25, 118, 210, 0.5);
+    }*/
+
+        .ap-hero-user:hover .ap-hero-avatar {
+            transform: scale(1.05);
+        }
+
+.ap-hero-user-meta {
+    min-width: 0;
+    line-height: 1.15;
+}
+
+.ap-hero-user-hi {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ap-muted);
+}
+
+.ap-hero-user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ap-heading);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+.ap-hero-user-caret {
+    font-size: 12px;
+    color: var(--ap-muted);
+    margin-left: 2px;
+    flex-shrink: 0;
+    transition: color .18s ease, transform .18s ease;
+}
+
+    .ap-hero-user:hover .ap-hero-user-caret {
+        color: var(--ap-primary);
+        transform: translateY(1px);
+    }
+
+/* ==================== Top toolbar (dxToolbar — replaces .ap-hero) ==================== */
+.ap-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: #20374e;
+    /*background: var(--ap-surface);*/
+    border-bottom: 0px solid var(--ap-border);
+    /*border-radius: var(--ap-r-lg);*/
+    padding: 7px;
+    margin-bottom: 16px;
+    /*box-shadow: var(--ap-elev-1);*/
+}
+
+/* Subtle elevation once the bar is pinned and content scrolls beneath it. */
+/*.ap-toolbar.is-stuck {
+    box-shadow: var(--ap-elev-1);
+}*/
+
+/* Material elevation on the dashboard cards (lift on hover). */
+.asset-panel .card {
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg); 
+    transition: box-shadow .2s ease;
+    background: var(--ap-surface); 
+    box-shadow: none;
+}
+
+    .asset-panel .card:hover {
+        box-shadow: var(--ap-elev-2);
+    }
+
+/* Give the toolbar a comfortable height and vertically centre its items. */
+.ap-toolbar .dx-toolbar-items-container {
+    min-height: 48px;
+}
+
+/* Section tabs blend into the toolbar (drop the dxTabs default chrome). */
+.ap-toolbar .asset-section-tabs {
+    background: transparent;
+    border:0px;
+}
+
+/* The notification bell relied on the old hero flex row to get its height.
+   Blend it into the toolbar (no white chip) and keep the icon readable on dark. */
+.ap-toolbar .ap-hero-icon {
+    height: 44px;
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.25);
+    color: #fff;
+}
+
+    .ap-toolbar .ap-hero-icon .dx-icon {
+        color: #fff;
+    }
+
+    .ap-toolbar .ap-hero-icon:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.5);
+        color: #fff;
+    }
+
+/* User profile blends into the toolbar too; lighten its text for the dark bar. */
+.ap-toolbar .ap-hero-user {
+    background: transparent;
+}
+
+    .ap-toolbar .ap-hero-user-name {
+        color: #fff;
+    }
+
+    .ap-toolbar .ap-hero-user-hi,
+    .ap-toolbar .ap-hero-user-caret {
+        color: rgba(255, 255, 255, 0.75);
+    }
+
+/* Breathing room between the right-aligned items (bell + user). */
+.ap-toolbar .dx-toolbar-after > .dx-toolbar-item {
+    padding-left: 10px;
+}
+
+/* Tighter padding on each section tab. */
+.ap-toolbar .dx-tab {
+    border-radius: 7px;
+}
+.ap-toolbar .dx-tab {
+    /*padding: 7px;*/
+    background-color: transparent;
+    /*background-color: #234156;*/
+    border-radius: 7px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative !important;
+    z-index: 1;
+    transition: ease-in-out 0.4s;
+    cursor: pointer;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+.ap-toolbar .dx-tab:before {
+    transition: 0.5s all ease;
+    position: absolute; 
+    top: 0;
+    left: 50%;
+    right: 50%;
+    bottom: 0;
+    opacity: 0;
+    content: "";
+    background-color: #fb5f05 !important;
+}
+.ap-toolbar .dx-tab:hover:before {
+    transition: 0.5s all ease;
+    left: 0;
+    right: 0;
+    opacity: 1;
+    z-index: -1;
+}
+.ap-toolbar .dx-tab .dx-icon{
+   display:block; 
+   margin: 0 auto;  
+   color:#ffffff;
+   /*height:22px;*/
+}
+.ap-toolbar .dx-tab .dx-tab-text{ 
+   color:#FFFFFF;
+}
+/*.ap-toolbar .dx-tab.dx-tab-selected {
+    background-color: #11142bbf;
+}*/
+.ap-toolbar .dx-tab.dx-tab-selected::after {
+    border:0px;
+}
+/* ==================== KPI strip (separate row below toolbar) ==================== */
+.ap-kpi-row {
+    display: grid;
+    /* Fluid so the strip absorbs the added financial cards (8 total) without
+       leaving orphans — collapses to fewer columns via the breakpoints below. */
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 18px;
+}
+/* ===== KPI card — entrance, hover, shine ===== */
+@keyframes ap-kpi-rise {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes ap-kpi-shine {
+    0% {
+        transform: translateX(-160%) skewX(-22deg);
+        opacity: 0;
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    85% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(260%) skewX(-22deg);
+        opacity: 0;
+    }
+}
+
+@keyframes ap-kpi-arrow-up {
+    0%, 100% {
+        transform: translateY(0);
+    }
+
+    45% {
+        transform: translateY(-3px);
+    }
+}
+
+@keyframes ap-kpi-arrow-shake {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+
+    25% {
+        transform: rotate(-8deg);
+    }
+
+    75% {
+        transform: rotate(8deg);
+    }
+}
+
+@keyframes ap-kpi-spin-slow {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes ap-kpi-value-pop {
+    0% {
+        transform: scale(1);
+        color: var(--ap-heading);
+    }
+
+    45% {
+        transform: scale(1.07);
+        color: var(--ap-primary);
+    }
+
+    100% {
+        transform: scale(1);
+        color: var(--ap-heading);
+    }
+}
+
+.ap-kpi-card {
+    /* Per-metric accent — overridden by the .ap-kpi-card--* variants below.
+       Defaults to the panel primary so an un-themed card still looks right. */
+    --kpi-accent: var(--ap-primary);
+    --kpi-accent-2: var(--ap-primary-2);
+    --kpi-tint: rgba(25, 118, 210, 0.12);
+    --kpi-ring: rgba(25, 118, 210, 0.22);
+    --kpi-glow: rgba(25, 118, 210, 0.45);
+    position: relative;
+    overflow: hidden;
+    background-color: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: 12px;
+    /* Resting elevation + a soft top accent so cards read as distinct surfaces. */
+    box-shadow: 0 1px 2px rgba(17, 20, 43, 0.06), 0 8px 20px -14px rgba(17, 20, 43, 0.25);
+    padding: 16px 18px 18px;
+    cursor: default;
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+    animation: ap-kpi-rise 560ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: transform .28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .28s ease, border-color .28s ease, background .28s ease;
+}
+
+/* Per-metric accent palettes (icon tile, hover glow, bottom bar) */
+.ap-kpi-card--teal {
+    --kpi-accent: #0ea5e9;
+    --kpi-accent-2: #38bdf8;
+    --kpi-tint: rgba(14, 165, 233, 0.12);
+    --kpi-ring: rgba(14, 165, 233, 0.22);
+    --kpi-glow: rgba(14, 165, 233, 0.45);
+}
+
+.ap-kpi-card--amber {
+    --kpi-accent: #f59e0b;
+    --kpi-accent-2: #fbbf24;
+    --kpi-tint: rgba(245, 158, 11, 0.14);
+    --kpi-ring: rgba(245, 158, 11, 0.24);
+    --kpi-glow: rgba(245, 158, 11, 0.45);
+}
+
+.ap-kpi-card--indigo {
+    --kpi-accent: #6366f1;
+    --kpi-accent-2: #818cf8;
+    --kpi-tint: rgba(99, 102, 241, 0.12);
+    --kpi-ring: rgba(99, 102, 241, 0.22);
+    --kpi-glow: rgba(99, 102, 241, 0.45);
+}
+
+.ap-kpi-card--green {
+    --kpi-accent: #10b981;
+    --kpi-accent-2: #34d399;
+    --kpi-tint: rgba(16, 185, 129, 0.12);
+    --kpi-ring: rgba(16, 185, 129, 0.22);
+    --kpi-glow: rgba(16, 185, 129, 0.45);
+}
+
+.ap-kpi-card--rose {
+    --kpi-accent: #e11d48;
+    --kpi-accent-2: #fb7185;
+    --kpi-tint: rgba(225, 29, 72, 0.12);
+    --kpi-ring: rgba(225, 29, 72, 0.22);
+    --kpi-glow: rgba(225, 29, 72, 0.45);
+}
+
+.ap-kpi-card--violet {
+    --kpi-accent: #7c3aed;
+    --kpi-accent-2: #a78bfa;
+    --kpi-tint: rgba(124, 58, 237, 0.12);
+    --kpi-ring: rgba(124, 58, 237, 0.22);
+    --kpi-glow: rgba(124, 58, 237, 0.45);
+}
+
+.ap-kpi-card--slate {
+    --kpi-accent: #475569;
+    --kpi-accent-2: #94a3b8;
+    --kpi-tint: rgba(71, 85, 105, 0.12);
+    --kpi-ring: rgba(71, 85, 105, 0.22);
+    --kpi-glow: rgba(71, 85, 105, 0.45);
+}
+
+/* Faint accent wash in the corner so cards read as themed, not plain white */
+.ap-kpi-card {
+    background-image: radial-gradient(120% 120% at 100% 0%, var(--kpi-tint) 0%, transparent 55%);
+}
+/* Stagger the entrance per column */
+.ap-kpi-row > .ap-kpi-card:nth-child(1) {
+    animation-delay: 40ms;
+}
+
+.ap-kpi-row > .ap-kpi-card:nth-child(2) {
+    animation-delay: 110ms;
+}
+
+.ap-kpi-row > .ap-kpi-card:nth-child(3) {
+    animation-delay: 180ms;
+}
+
+.ap-kpi-row > .ap-kpi-card:nth-child(4) {
+    animation-delay: 250ms;
+}
+
+.ap-kpi-row > .ap-kpi-card:nth-child(5) {
+    animation-delay: 320ms;
+}
+
+.ap-kpi-row > .ap-kpi-card:nth-child(6) {
+    animation-delay: 390ms;
+}
+
+.ap-kpi-row > .ap-kpi-card:nth-child(7) {
+    animation-delay: 460ms;
+}
+
+.ap-kpi-row > .ap-kpi-card:nth-child(8) {
+    animation-delay: 530ms;
+}
+
+/* Gradient shine sweep on hover */
+.ap-kpi-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg, transparent 30%, rgba(108, 117, 255, 0.16) 50%, transparent 70%);
+    transform: translateX(-160%) skewX(-22deg);
+    pointer-events: none;
+    z-index: 1;
+}
+/* Soft accent bar that fills from the left on hover */
+.ap-kpi-card::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background: linear-gradient(90deg, var(--kpi-accent), var(--kpi-accent-2));
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform .35s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.ap-kpi-card[role="button"] {
+    cursor: pointer;
+}
+
+.ap-kpi-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--kpi-ring);
+    box-shadow: 0 18px 36px -14px rgba(17, 20, 43, 0.22), 0 8px 18px -6px var(--kpi-glow);
+}
+
+.ap-kpi-card[role="button"]:hover {
+    transform: translateY(-5px) scale(1.01);
+}
+
+.ap-kpi-card:hover::before {
+    animation: ap-kpi-shine 950ms ease forwards;
+}
+
+.ap-kpi-card:hover::after {
+    transform: scaleX(1);
+}
+
+.ap-kpi-card:active {
+    transform: translateY(-2px) scale(0.995);
+    transition-duration: .08s;
+}
+
+/* Lift contents above the ::before sweep */
+.ap-kpi-card > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* ===== KPI header row — colored icon tile + trend/scope chip ===== */
+.ap-kpi-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.ap-kpi-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    color: var(--kpi-accent);
+    background: var(--kpi-tint);
+    box-shadow: inset 0 0 0 1px var(--kpi-ring);
+    transition: transform .3s cubic-bezier(0.34, 1.56, 0.64, 1), background .28s ease, color .28s ease, box-shadow .28s ease;
+}
+
+.ap-kpi-card:hover .ap-kpi-icon {
+    transform: translateY(-1px) scale(1.08) rotate(-4deg);
+    color: #fff;
+    background: linear-gradient(135deg, var(--kpi-accent), var(--kpi-accent-2));
+    box-shadow: 0 10px 20px -6px var(--kpi-glow);
+}
+
+/* Trend / scope chip — semantic colour, independent of the card accent */
+.ap-kpi-trend {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 26px;
+    min-width: 26px;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--kpi-tint);
+    color: var(--kpi-accent);
+    line-height: 1;
+}
+
+.ap-kpi-trend i {
+    font-size: 11px;
+}
+
+.ap-kpi-trend--up {
+    background: rgba(16, 185, 129, 0.14);
+    color: #059669;
+}
+
+.ap-kpi-trend--warn {
+    background: rgba(245, 158, 11, 0.16);
+    color: #b45309;
+}
+
+.ap-kpi-trend--accent {
+    background: rgba(99, 102, 241, 0.14);
+    color: #4f46e5;
+}
+
+/* Currency badge on the spend card, in place of a trend chip */
+.ap-kpi-badge-aed {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--kpi-accent);
+    background: var(--kpi-tint);
+    padding: 5px 9px;
+    border-radius: 7px;
+    box-shadow: inset 0 0 0 1px var(--kpi-ring);
+}
+
+/* ===== Progress meter + footnote (modern dashboard tile) ===== */
+.ap-kpi-meter {
+    position: relative;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.07);
+    overflow: hidden;
+    margin-top: 14px;
+}
+
+.ap-kpi-meter-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--kpi-accent), var(--kpi-accent-2));
+    box-shadow: 0 0 8px -1px var(--kpi-glow);
+    transition: width 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ap-kpi-foot {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ap-muted);
+    margin-top: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ===== Compact / simple tiles — small icon, value, label. The trend chip,
+   progress meter and footnote are dropped for a cleaner, smaller card.
+   Scoped to the procurement workspace so the Asset Panel tiles are untouched. */
+.pw-workspace .ap-kpi-card {
+    padding: 12px 14px;
+    border-radius: 10px;
+}
+
+.pw-workspace .ap-kpi-head {
+    margin-bottom: 8px;
+}
+
+.pw-workspace .ap-kpi-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.pw-workspace .ap-kpi-value {
+    margin-top: 0;
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.pw-workspace .ap-kpi-value-sub {
+    font-size: 12px;
+}
+
+.pw-workspace .ap-kpi-label {
+    margin-top: 3px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ap-muted);
+}
+
+/* Drop the extra chrome to keep the tiles simple. */
+.pw-workspace .ap-kpi-trend,
+.pw-workspace .ap-kpi-badge-aed,
+.pw-workspace .ap-kpi-meter,
+.pw-workspace .ap-kpi-foot {
+    display: none;
+}
+
+/* Icon on the LEFT — the icon tile sits beside a stacked value + label
+   column instead of on top of them. The ::before/::after decorations are
+   absolutely positioned, so they stay out of the grid flow. */
+.pw-workspace .ap-kpi-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+        "icon value"
+        "icon label";
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 0;
+}
+
+.pw-workspace .ap-kpi-head {
+    grid-area: icon;
+    align-self: center;
+    margin-bottom: 0;
+}
+
+.pw-workspace .ap-kpi-value {
+    grid-area: value;
+    align-self: end;
+    margin-top: 0;
+}
+
+.pw-workspace .ap-kpi-label {
+    grid-area: label;
+    align-self: start;
+    margin-top: 2px;
+}
+
+/* No entrance animation / hover lift on the simpler tiles. */
+.pw-workspace .ap-kpi-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+}
+
+    .pw-workspace .ap-kpi-card:hover {
+        transform: none;
+    }
+
+    .pw-workspace .ap-kpi-card::before,
+    .pw-workspace .ap-kpi-card::after {
+        display: none;
+    }
+
+@media (prefers-reduced-motion: reduce) {
+    .ap-kpi-meter-fill {
+        transition: none !important;
+    }
+}
+
+.ap-kpi-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ap-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color .25s ease;
+}
+
+.ap-kpi-card:hover .ap-kpi-label {
+    color: var(--ap-heading);
+}
+
+.ap-kpi-value {
+    display: inline-block;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ap-heading);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-top: 6px;
+    transition: transform .25s ease, color .25s ease;
+}
+
+.ap-kpi-card:hover .ap-kpi-value {
+    transform: translateY(-1px);
+}
+
+.ap-kpi-value.is-pulsing {
+    animation: ap-kpi-value-pop 650ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ap-kpi-value-sub {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ap-muted);
+    margin-left: 4px;
+}
+
+.ap-kpi-meta {
+    font-size: 11px;
+    color: var(--ap-muted);
+    margin-top: 4px;
+}
+
+.ap-kpi-meta--up {
+    color: var(--ap-success);
+    font-weight: 600;
+}
+
+.ap-kpi-meta--warn {
+    color: var(--ap-warn, var(--ap-danger));
+    font-weight: 600;
+}
+
+.ap-kpi-meta--accent {
+    color: var(--ap-primary);
+    font-weight: 600;
+}
+
+.ap-kpi-meta .dx-icon,
+.ap-kpi-meta > i {
+    font-size: 11px;
+    margin-right: 2px;
+    display: inline-block;
+}
+/* Lively meta-icons: up bounces, warn shakes, accent gently bobs */
+.ap-kpi-meta--up .dx-icon,
+.ap-kpi-meta--up > i {
+    animation: ap-kpi-arrow-up 1.8s ease-in-out infinite;
+    color: var(--ap-success);
+}
+
+.ap-kpi-meta--warn .dx-icon,
+.ap-kpi-meta--warn > i {
+    animation: ap-kpi-arrow-shake 2.2s ease-in-out infinite;
+    transform-origin: center;
+}
+
+.ap-kpi-meta--accent .dx-icon,
+.ap-kpi-meta--accent > i {
+    animation: ap-kpi-arrow-up 2.4s ease-in-out infinite;
+}
+
+/* Respect users who prefer no motion */
+@media (prefers-reduced-motion: reduce) {
+    .ap-kpi-card,
+    .ap-kpi-card::before,
+    .ap-kpi-card::after,
+    .ap-kpi-value,
+    .ap-kpi-icon,
+    .ap-kpi-meta .dx-icon,
+    .ap-kpi-meta > i {
+        animation: none !important;
+        transition: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}
+
+@media (max-width: 1600px) {
+    .ap-kpi-row {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 900px) {
+    .ap-kpi-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .ap-kpi-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Procurement workspace KPI strip — keep all tiles on a single row regardless
+   of how many there are (auto-flow column adds one equal, shrinkable column per
+   card). Scoped to .pw-workspace so the Asset Panel's grid is unaffected.
+   Wraps only on tablet/phone widths. */
+.pw-workspace .ap-kpi-row {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: none;
+    max-width: none;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+@media (max-width: 900px) {
+    .pw-workspace .ap-kpi-row {
+        grid-auto-flow: row;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 620px) {
+    .pw-workspace .ap-kpi-row {
+        grid-auto-flow: row;
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Fixed-top toolbar (class="fixed-top") — keep it full-width & flush, and push
+   the page content (KPIs, grid) below it so nothing hides under the bar. */
+.pw-workspace .ap-erp-toolbar.fixed-top {
+    margin-bottom: 0;
+    border-radius: 0;
+    z-index: 1050;
+}
+
+.pw-workspace .ap-main {
+    padding-top: 20px;
+}
+
+/* ==================== Advanced Analytics section ==================== */
+.ap-analytics {
+    margin-bottom: 18px;
+}
+
+.ap-analytics-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 4px 2px 12px;
+}
+
+.ap-analytics-title {
+    font-weight: 700;
+    font-size: 1.02rem;
+    color: var(--ap-heading);
+    letter-spacing: 0.2px;
+}
+
+.ap-analytics-card .card-header {
+    font-weight: 600;
+    color: var(--ap-heading);
+    background: transparent;
+    border-bottom: 1px solid var(--ap-border);
+}
+.custom-card-header {
+    color: #b69f64;
+    font-size: 14px;
+    margin-bottom: 7px;
+}
+
+/* Gauge cards: gauge on top, compact stat read-out beneath. */
+.ap-gauge-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding-top: 10px;
+}
+
+.ap-gauge-stats {
+    text-align: center;
+    color: var(--ap-text);
+    font-size: 0.86rem;
+    line-height: 1.35;
+}
+
+.ap-gauge-stat-val {
+    font-weight: 700;
+    color: var(--ap-heading);
+    font-size: 1.05rem;
+}
+
+.ap-gauge-stat-sub {
+    color: var(--ap-muted);
+    font-size: 0.76rem;
+    margin-top: 2px;
+}
+
+/* ==================== Bootstrap 5 card overrides (Kinetic Logic skin) =========== */
+/*.asset-panel .card {
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    box-shadow: none;
+}*/
+
+    .asset-panel .card + .card,
+    .asset-panel .card {
+        margin-bottom: 14px;
+    }
+
+.asset-panel .card-header {
+    background: var(--ap-surface);
+    border-bottom: 1px solid var(--ap-border);
+    padding: 12px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ap-heading);
+}
+
+.asset-panel .card-body {
+    padding: 14px 18px;
+}
+
+    .asset-panel .card-body.p-0 {
+        padding: 0;
+    }
+
+/* Bootstrap nav-tabs inside .card-header (Records card) */
+.asset-panel .card-header-tabs {
+    margin: -12px -18px -13px;
+}
+
+    .asset-panel .card-header-tabs .nav-link {
+        border: 0;
+        background: transparent;
+        color: var(--ap-muted);
+        font-size: 13px;
+        font-weight: 600;
+        padding: 14px 18px;
+        border-bottom: 2px solid transparent;
+        border-radius: 0;
+    }
+
+        .asset-panel .card-header-tabs .nav-link:hover {
+            color: var(--ap-heading);
+        }
+
+        .asset-panel .card-header-tabs .nav-link.active {
+            color: var(--ap-heading);
+            background: transparent;
+            border-bottom-color: var(--ap-primary);
+        }
+
+/* dxTabPanel chrome for the Records card */
+.records-tab-panel.dx-tabpanel {
+    background: transparent;
+}
+
+.records-tab-panel .dx-tabs {
+    background: var(--ap-surface);
+    border-bottom: 1px solid var(--ap-border);
+}
+
+    .records-tab-panel .dx-tabs .dx-tab {
+        padding: 14px 24px;
+    }
+
+.records-tab-panel .dx-tab .dx-tab-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ap-muted);
+}
+
+.records-tab-panel .dx-tab-selected {
+    background: transparent;
+    box-shadow: inset 0 -2px 0 var(--ap-primary);
+}
+
+    .records-tab-panel .dx-tab-selected .dx-tab-text,
+    .records-tab-panel .dx-tab-selected .dx-icon {
+        color: var(--ap-primary) !important;
+        font-weight: 700;
+    }
+
+.records-tab-panel .dx-tab:hover {
+    background: var(--ap-inset);
+}
+
+.records-tab-panel .dx-multiview-wrapper {
+    padding: 12px;
+}
+
+/* dxDataGrid inside each tab — Kinetic Logic table look */
+.records-grid.dx-datagrid {
+    background: transparent;
+}
+
+.records-grid .dx-datagrid-headers {
+    background: var(--ap-inset) !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid var(--ap-border) !important;
+}
+
+    .records-grid .dx-datagrid-headers .dx-header-row > td {
+        background: var(--ap-inset) !important;
+        color: var(--ap-heading) !important;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        padding: 10px 14px;
+        border: 0 !important;
+    }
+
+.records-grid .dx-datagrid-rowsview .dx-data-row > td {
+    font-size: 13px;
+    color: var(--ap-text);
+    border-bottom: 1px solid var(--ap-border) !important;
+    padding: 10px 14px;
+}
+
+/*.records-grid .dx-row.dx-data-row:hover > td {
+    background: var(--ap-inset) !important;
+}*/
+
+/* Compact item-count pill (used in Purchase Records' Items column) */
+.ap-pill-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 22px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--ap-inset);
+    color: var(--ap-muted);
+    border: 1px solid var(--ap-border);
+    border-radius: 999px;
+    line-height: 1;
+}
+
+/* Bootstrap input-group inside Records card header */
+.asset-panel .card-header .input-group-text {
+    background: var(--ap-surface);
+    border-color: var(--ap-border);
+    color: var(--ap-muted);
+}
+
+.asset-panel .card-header .form-control {
+    border-color: var(--ap-border);
+    font-size: 12px;
+}
+
+.asset-panel .card-header .btn-outline-secondary {
+    border-color: var(--ap-border);
+    color: var(--ap-text);
+}
+
+    .asset-panel .card-header .btn-outline-secondary:hover {
+        background: var(--ap-inset);
+        border-color: var(--ap-border-strong, #cbd5e1);
+        color: var(--ap-heading);
+    }
+
+/* Pills (Asset / Group toggle) */
+.ap-pill-group {
+    display: inline-flex;
+    background: var(--ap-inset);
+    border: 1px solid var(--ap-border);
+    border-radius: 99px;
+    padding: 2px;
+}
+
+.ap-pill {
+    border: 0;
+    background: transparent;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ap-muted);
+    border-radius: 99px;
+    cursor: pointer;
+}
+
+    .ap-pill.is-active {
+        background: var(--ap-surface);
+        color: var(--ap-heading);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    }
+
+/* Mini search */
+.ap-mini-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--ap-inset);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r);
+    padding: 0 6px 0 8px;
+}
+
+    .ap-mini-search .dx-icon {
+        color: var(--ap-muted);
+        font-size: 13px;
+    }
+
+    .ap-mini-search input {
+        border: 0;
+        outline: 0;
+        background: transparent;
+        padding: 6px 6px 6px 6px;
+        font-size: 12px;
+        width: 150px;
+    }
+
+.ap-icon-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r);
+    color: var(--ap-text);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .ap-icon-btn:hover {
+        background: var(--ap-inset);
+    }
+
+    .ap-icon-btn + .ap-icon-btn {
+        margin-left: 4px;
+    }
+
+    .ap-icon-btn .dx-icon {
+        font-size: 14px;
+    }
+
+.ap-add-btn {
+    padding: 7px 14px;
+    border: 0;
+    border-radius: var(--ap-r);
+    background: linear-gradient(135deg, var(--ap-primary), var(--ap-primary-2));
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+    .ap-add-btn:hover {
+        filter: brightness(1.05);
+    }
+
+/* ==================== Table ==================== */
+.ap-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+    .ap-table thead th {
+        background: var(--ap-inset);
+        color: var(--ap-heading);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        padding: 10px 14px;
+        border-bottom: 1px solid var(--ap-border);
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    .ap-table tbody td {
+        padding: 12px 14px;
+        font-size: 13px;
+        color: var(--ap-text);
+        border-bottom: 1px solid var(--ap-border);
+        vertical-align: middle;
+    }
+
+    .ap-table tbody tr {
+        cursor: pointer;
+        transition: background-color .12s ease;
+    }
+
+        .ap-table tbody tr:hover {
+            background: var(--ap-inset);
+        }
+
+        .ap-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+    .ap-table tfoot td {
+        padding: 10px 14px;
+        font-size: 12px;
+        color: var(--ap-text);
+        background: var(--ap-inset);
+        border-top: 1px solid var(--ap-border);
+    }
+
+.ap-code {
+    font-weight: 600;
+    color: var(--ap-primary);
+}
+
+.ap-table-foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: var(--ap-inset);
+    border-top: 1px solid var(--ap-border);
+    font-size: 12px;
+}
+
+.ap-foot-spacer {
+    flex: 1;
+}
+
+.ap-select {
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r);
+    background: var(--ap-surface);
+    padding: 3px 6px;
+    font-size: 12px;
+}
+
+.ap-label-sm {
+    font-size: 11px;
+    color: var(--ap-muted);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* ==================== Chip ==================== */
+.ap-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 99px;
+    line-height: 1.2;
+}
+
+    .ap-chip .ap-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        flex-shrink: 0;
+    }
+
+.ap-chip--ok {
+    background: var(--ap-success-tint);
+    color: var(--ap-success);
+}
+
+.ap-chip--warn {
+    background: var(--ap-warn-tint);
+    color: var(--ap-warn);
+}
+
+.ap-chip--danger {
+    background: var(--ap-danger-tint);
+    color: var(--ap-danger);
+}
+
+.ap-chip--info {
+    background: var(--ap-info-tint);
+    color: var(--ap-info);
+}
+
+.ap-chip--neutral {
+    background: var(--ap-inset);
+    color: var(--ap-muted);
+    border: 1px solid var(--ap-border);
+}
+
+.ap-chip--pending {
+    background: var(--ap-warn-tint);
+    color: var(--ap-warn);
+}
+
+.ap-chip--approved {
+    background: var(--ap-info-tint);
+    color: var(--ap-info);
+}
+
+.ap-chip--delivered {
+    background: var(--ap-success-tint);
+    color: var(--ap-success);
+}
+
+.ap-chip--rejected {
+    background: var(--ap-danger-tint);
+    color: var(--ap-danger);
+}
+
+.ap-chip--draft {
+    background: var(--ap-inset);
+    color: var(--ap-muted);
+    border: 1px solid var(--ap-border);
+}
+
+/* ==================== Tabs in card header ==================== */
+.ap-card-h--tabs {
+    padding: 0 18px;
+}
+
+.ap-tab-row {
+    display: flex;
+    gap: 0;
+}
+
+.ap-tab {
+    padding: 14px 4px;
+    margin-right: 22px;
+    background: transparent;
+    border: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ap-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    position: relative;
+    top: 1px;
+}
+
+    .ap-tab:hover {
+        color: var(--ap-heading);
+    }
+
+    .ap-tab.is-active {
+        color: var(--ap-heading);
+        border-bottom-color: var(--ap-primary);
+    }
+
+/* ==================== Activity Log / Pending For Approval (dxList) ==================== */
+/* Carded items — same look as the My Vendors (shortlist) list. */
+.ap-activity-dx.dx-list {
+    border: 0;
+    padding: 0px;
+}
+
+.ap-activity-dx .dx-list-item {
+    box-sizing: border-box;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    overflow: hidden;
+    margin-top: 7px;
+    padding: 0 !important;
+}
+
+    /*.ap-activity-dx .dx-list-item.dx-state-hover {
+        background: var(--ap-inset) !important;
+        cursor: pointer;
+    }*/
+
+.ap-activity-dx .dx-list-item-content {
+    padding: 0 !important;
+}
+
+.ap-activity-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.ap-activity-icon {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--ap-r);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+}
+
+.ap-activity-icon--transfer {
+    background: var(--ap-info-tint);
+    color: var(--ap-info);
+}
+
+.ap-activity-icon--purchase {
+    background: var(--ap-success-tint);
+    color: var(--ap-success);
+}
+
+.ap-activity-icon--allocate {
+    background: var(--ap-warn-tint);
+    color: var(--ap-warn);
+}
+
+.ap-activity-avatar {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 20%;
+    overflow: hidden;
+    background: var(--ap-info-tint);
+    color: var(--ap-info);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+    /* One distinct icon background per log type. */
+    .ap-activity-avatar--transfer { background: var(--ap-info-tint);      color: var(--ap-info); }      /* Transfer  — blue */
+    .ap-activity-avatar--allocate { background: var(--ap-warn-tint);      color: var(--ap-warn); }      /* Allocation — amber */
+    .ap-activity-avatar--grn      { background: rgba(30, 166, 114, 0.14); color: #1ea672; }             /* GRN       — green */
+    .ap-activity-avatar--purchase { background: rgb(239, 97, 11, 0.70);  color: #fff; }             /* Purchase  — brown */
+
+.ap-activity-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.ap-activity-body {
+    flex: 1;
+    min-width: 0;
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.ap-activity-title {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: var(--ap-text);
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.ap-activity-title strong {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    /*color: #333334;*/
+    /*font-weight: 500;*/
+}
+.ap-activity-remarks {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    color: #8c8c8c;
+    font-weight: 500;
+}
+
+.ap-activity-date {
+    font-size: 12px;
+    color: var(--ap-muted);
+    margin-top: 10px;
+    margin-right: 20px;
+}
+
+/* ---- Activity Log: item entry animation + hover lift ------------------ */
+@keyframes ap-activity-item-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes ap-activity-avatar-pop {
+    0%   { transform: scale(0.6); opacity: 0; }
+    60%  { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.ap-activity-dx .dx-list-item {
+    animation: ap-activity-item-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+    /* Stagger the first several rows so the list cascades in */
+    .ap-activity-dx .dx-list-item:nth-child(1) { animation-delay: 0ms; }
+    .ap-activity-dx .dx-list-item:nth-child(2) { animation-delay: 60ms; }
+    .ap-activity-dx .dx-list-item:nth-child(3) { animation-delay: 120ms; }
+    .ap-activity-dx .dx-list-item:nth-child(4) { animation-delay: 180ms; }
+    .ap-activity-dx .dx-list-item:nth-child(5) { animation-delay: 240ms; }
+    .ap-activity-dx .dx-list-item:nth-child(6) { animation-delay: 300ms; }
+    .ap-activity-dx .dx-list-item:nth-child(7) { animation-delay: 360ms; }
+    .ap-activity-dx .dx-list-item:nth-child(8) { animation-delay: 420ms; }
+    .ap-activity-dx .dx-list-item:nth-child(n+9) { animation-delay: 480ms; }
+
+   /* .ap-activity-dx .dx-list-item.dx-state-hover {
+        transform: translateX(2px);
+        box-shadow: inset 3px 0 0 var(--ap-info);
+    }*/
+
+.ap-activity-avatar {
+    animation: ap-activity-avatar-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: 120ms;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.ap-activity-dx .dx-list-item.dx-state-hover .ap-activity-avatar {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 3px var(--ap-inset);
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .ap-activity-dx .dx-list-item,
+    .ap-activity-avatar {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ---- Activity Log: refresh button -------------------------------------- */
+@keyframes ap-activity-refresh-spin {
+    to { transform: rotate(360deg); }
+}
+
+.ap-activity-refresh-btn.dx-button {
+    min-width: 28px;
+    padding: 2px 6px;
+}
+
+    .ap-activity-refresh-btn.dx-button .dx-icon {
+        font-size: 16px;
+        color: var(--ap-info);
+        transition: transform 200ms ease;
+    }
+
+    .ap-activity-refresh-btn.dx-button:hover .dx-icon {
+        transform: rotate(-30deg);
+    }
+
+    /* While disabled (i.e. fetch in flight), spin the icon to signal loading */
+    .ap-activity-refresh-btn.dx-button.dx-state-disabled .dx-icon {
+        animation: ap-activity-refresh-spin 800ms linear infinite;
+        opacity: 0.7;
+    }
+
+@media (prefers-reduced-motion: reduce) {
+    .ap-activity-refresh-btn.dx-button .dx-icon,
+    .ap-activity-refresh-btn.dx-button.dx-state-disabled .dx-icon {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* ==================== Tree-list inside Active Asset Inventory ==================== */
+.ap-inventory--treelist .dx-treelist {
+    background: var(--ap-surface);
+    border: 0;
+}
+
+.ap-inventory--treelist .dx-treelist-headers,
+.ap-inventory--treelist .dx-treelist-headers .dx-header-row > td {
+    background: var(--ap-inset) !important;
+    color: var(--ap-heading) !important;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--ap-border) !important;
+    padding: 10px 14px !important;
+}
+
+.ap-inventory--treelist .dx-treelist-rowsview .dx-data-row > td {
+    font-size: 13px;
+    color: var(--ap-text);
+    border-bottom: 1px solid var(--ap-border) !important;
+    padding: 10px 14px !important;
+}
+
+.ap-inventory--treelist .dx-treelist-rowsview .dx-data-row:hover > td {
+    background: var(--ap-inset) !important;
+}
+
+.ap-inventory--treelist .dx-treelist .dx-toolbar {
+    background: var(--ap-surface);
+    border-bottom: 1px solid var(--ap-border);
+    padding: 6px 10px;
+}
+
+.ap-inventory--treelist .dx-treelist-pager {
+    background: var(--ap-inset);
+    border-top: 1px solid var(--ap-border);
+}
+
+/* Float shadow only for modals */
+
+
+/* ============================================================
+       Asset GRN — right-side Bootstrap 5 offcanvas
+       ============================================================ */
+.ap-grn-offcanvas {
+    width: 560px;
+    max-width: 90vw;
+    border-left: 1px solid var(--ap-border);
+    box-shadow: -10px 0 30px -10px rgba(15, 23, 42, 0.18);
+}
+
+    .ap-grn-offcanvas .offcanvas-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--ap-border);
+        background: var(--ap-surface);
+        align-items: flex-start;
+    }
+
+    .ap-grn-offcanvas .offcanvas-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ap-heading);
+        letter-spacing: -0.01em;
+    }
+
+    .ap-grn-offcanvas .offcanvas-body {
+        padding: 18px 20px;
+        background: var(--ap-bg);
+        overflow-y: auto;
+    }
+
+.ap-grn-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ap-muted);
+    margin: 18px 0 8px;
+}
+
+.ap-grn-footer {
+    padding: 12px 20px;
+    background: var(--ap-surface);
+    border-top: 1px solid var(--ap-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+/* Slim down the dxForm inside the offcanvas so labels & inputs fit nicely */
+.ap-grn-offcanvas .dx-field-item-label-text {
+    font-size: 12px;
+}
+
+/* ============================================================
+       Pending Receipts — right-side offcanvas (Awaiting Receipt KPI)
+       ============================================================ */
+.ap-pending-receipts-offcanvas {
+    width: 720px;
+    max-width: 95vw;
+    border-left: 1px solid var(--ap-border);
+    box-shadow: -10px 0 30px -10px rgba(15, 23, 42, 0.18);
+    background: var(--ap-bg);
+    /* Crisp text rendering (matches the asset panel). */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+    .ap-pending-receipts-offcanvas .offcanvas-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--ap-border);
+        background: var(--ap-surface);
+        align-items: flex-start;
+    }
+
+    .ap-pending-receipts-offcanvas .offcanvas-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--ap-heading);
+        letter-spacing: -0.01em;
+    }
+
+    .ap-pending-receipts-offcanvas .offcanvas-body {
+        padding: 18px 20px;
+        background: var(--ap-bg);
+        overflow-y: auto;
+    }
+
+.pending-receipts-list.dx-list { 
+    border: 0;
+    padding: 4px 0;
+}
+.pending-receipts-list .dx-list-item-content {
+    padding: 0;
+}
+/* List items styled like the KPI cards: surface + border + radius + shadow.
+   Horizontal margin keeps the right border clear of the scrollbar. */
+.pending-receipts-list .dx-list-item {
+    box-sizing: border-box;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    overflow: hidden;
+    margin-top: 7px;
+}
+
+/* ============================================================
+       Shortlist row — reusable, light-theme ticker-style list item.
+       Used inside dxList itemTemplates (pending receipts, asset picker).
+       ============================================================ */
+.shortlist-row {
+    outline: none;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px 10px 12px;
+    background: var(--ap-surface, #ffffff);
+    z-index: 1;
+    transition: ease-in-out 0.4s;
+    /*left: 15px;*/
+}
+
+    .shortlist-row:before {
+        transition: 0.5s all ease;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        right: 50%;
+        bottom: 0;
+        opacity: 0;
+        content: "";
+        background-color: #4755691f !important;
+    }
+
+    .shortlist-row:hover:before {
+        transition: 0.5s all ease;
+        left: 0;
+        right: 0;
+        opacity: 1;
+        z-index: -1;
+    }
+
+.dx-list-item.dx-state-selected > .dx-list-item-content > .shortlist-row {
+    background: rgba(14, 165, 233, 0.08);
+    border-left-color: #0ea5e9;
+}
+
+.shortlist-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.shortlist-title {
+    font-weight: 700;
+    color: var(--ap-heading, #0f172a);
+    /*color: #6b6969;*/
+    font-size: 13px;
+    line-height: 2.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.shortlist-sub {
+    font-size: 12px;
+    color: var(--ap-muted, #68696d);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.shortlist-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+/* Edit/open icon sitting at the far right of a shortlist row (e.g. GRN list). */
+.shortlist-edit {
+    flex-shrink: 0;
+    font-size: 18px;
+    color: var(--ap-muted, #68696d);
+    padding: 6px;
+    border-radius: var(--ap-r, 6px);
+    transition: color .2s ease, background .2s ease;
+}
+
+.shortlist-edit:hover {
+    color: var(--ap-primary, #1976d2);
+    background: var(--ap-info-tint, rgba(37, 99, 235, 0.12));
+}
+
+.shortlist-value {
+    font-weight: 700;
+    color: var(--ap-heading, #0f172a);
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.shortlist-meta {
+    font-size: 13px;
+    color: var(--ap-muted, #64748b);
+    line-height: 1.2;
+}
+
+.shortlist-meta--up {
+    color: #16a34a;
+}
+/* positive — green */
+.shortlist-meta--down {
+    color: #5e5e5e;
+}
+/* negative — red   */
+.shortlist-action {
+    margin-left: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    background-color: #4755691f;
+}
+.shortlist-action.dx-state-hover { 
+    background-color: #4755691f;
+}
+/* dxList resets that look better with the shortlist row */
+/*.shortlist-list .dx-list-item {
+    border-bottom: 1px solid #fafafa;
+}*/
+
+.shortlist-list.dx-list {
+    background: var(--body-bg);
+    border: 0;
+    padding: 0px;
+}
+.shortlist-list .dx-list-item-content {
+    padding: 0;
+}
+/* List items styled like the KPI cards: surface + border + radius.
+   Horizontal margin keeps the right border clear of the scrollbar. */
+.shortlist-list .dx-list-item {
+    box-sizing: border-box;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg); 
+    overflow: hidden; 
+    animation: ap-activity-item-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    margin-top:4px;
+}
+
+/* WhatsApp-style unread-count badge (e.g. My Vendors → pending items). */
+.ap-wa-badge {
+    flex-shrink: 0;
+    align-self: center;
+    margin-left: auto;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #25d366;          /* WhatsApp green */
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 22px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* Per-vendor options trigger (ellipsis) on each My Vendors row. */
+.shortlist-row .ap-vendor-ellipsis {
+    flex-shrink: 0;
+    align-self: center;
+    margin-left: auto;          /* pushes to far right when no green badge precedes it */
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: #8a98a5;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.shortlist-row .ap-wa-badge + .ap-vendor-ellipsis {
+    margin-left: 8px;           /* badge already pushed the group right */
+}
+.shortlist-row .ap-vendor-ellipsis:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+    color: #234156;
+}
+/* Vendor documents folder button — sits just left of the ellipsis. */
+.shortlist-row .ap-vendor-folder {
+    position: relative;
+    flex-shrink: 0;
+    align-self: center;
+    margin-left: auto;          /* right-aligns the trailing button group */
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.shortlist-row .ap-vendor-folder:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+/* The green pending badge (if present) already pushed the group right. */
+.shortlist-row .ap-wa-badge + .ap-vendor-folder {
+    margin-left: 8px;
+}
+/* Ellipsis sits snug after the folder (override its own margin-left:auto). */
+.shortlist-row .ap-vendor-folder + .ap-vendor-ellipsis {
+    margin-left: 2px;
+}
+/* Document count badge on the folder corner. */
+.ap-folder-badge {
+    position: absolute;
+    top: -7px;
+    right: -13px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+/* Vendor options context menu items. */
+.ap-vendor-menu .ap-vendor-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+.ap-vendor-menu .ap-vendor-menu-item > i {
+    width: 16px;
+    text-align: center;
+    color: #fb5f05;
+}
+
+/* Inside a carded item, drop the row's 15px positioning offset so content
+   aligns within the card (the offset was for the old flat-list look). */
+.shortlist-list .shortlist-row,
+.pending-receipts-list .shortlist-row,
+.ap-activity-dx .shortlist-row {
+    left: 0;
+}
+
+    /* Cascade the first rows in, then settle the rest at a fixed delay. */
+    .shortlist-list .dx-list-item:nth-child(1) { animation-delay: 0ms; }
+    .shortlist-list .dx-list-item:nth-child(2) { animation-delay: 60ms; }
+    .shortlist-list .dx-list-item:nth-child(3) { animation-delay: 120ms; }
+    .shortlist-list .dx-list-item:nth-child(4) { animation-delay: 180ms; }
+    .shortlist-list .dx-list-item:nth-child(5) { animation-delay: 240ms; }
+    .shortlist-list .dx-list-item:nth-child(6) { animation-delay: 300ms; }
+    .shortlist-list .dx-list-item:nth-child(7) { animation-delay: 360ms; }
+    .shortlist-list .dx-list-item:nth-child(8) { animation-delay: 420ms; }
+    .shortlist-list .dx-list-item:nth-child(n+9) { animation-delay: 480ms; }
+
+@media (prefers-reduced-motion: reduce) {
+    .shortlist-list .dx-list-item {
+        animation: none !important;
+    }
+}
+/* Move the multi-select checkbox tight to the row, no extra padding */
+/*.shortlist-list .dx-list-select-checkbox-container {
+    padding-left: 6px;
+}*/
+
+/* ---- Shortlist avatar (user icon / initials, left of row) ---------------- */
+.shortlist-avatar {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    position: relative;
+}
+
+    .shortlist-avatar .fa-user {
+        font-size: 16px;
+        opacity: 0.95;
+    }
+
+    /* Status ring around the avatar — colour follows tone */
+   /* .shortlist-avatar::after {
+        content: '';
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        border: 2px solid var(--ap-surface, #fff);
+        background: #94a3b8;
+    }*/
+
+    .shortlist-avatar--ok::after      { background: #16a34a; }
+    .shortlist-avatar--pending::after { background: #f59e0b; }
+    .shortlist-avatar--danger::after  { background: #dc2626; }
+    .shortlist-avatar--muted::after   { background: #94a3b8; }
+    .shortlist-avatar--neutral::after { background: #0ea5e9; }
+
+.shortlist-avatar-initials {
+    line-height: 1;
+}
+
+.shortlist-avatar-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+}
+
+.shortlist-avatar-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+/* ---- Shortlist title row (ID + status pill side-by-side) ----------------- */
+.shortlist-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.shortlist-id {
+    font-weight: 700;
+    color: var(--ap-heading, #0f172a);
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.shortlist-status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    line-height: 14px;
+    background: #e2e8f0;
+    color: #475569;
+}
+
+    .shortlist-status-pill--ok      { background: #dcfce7; color: #166534; }
+    .shortlist-status-pill--pending { background: #fef3c7; color: #92400e; }
+    .shortlist-status-pill--danger  { background: #fee2e2; color: #991b1b; }
+    .shortlist-status-pill--muted   { background: #f1f5f9; color: #64748b; }
+    .shortlist-status-pill--neutral { background: #e0f2fe; color: #075985; }
+
+/* ---- Shortlist meta chip row (items / LPOs / GRNs / linked call) --------- */
+.shortlist-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 4px;
+}
+
+.shortlist-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 7px;
+    border-radius: 9px;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 11px;
+    line-height: 16px;
+    font-weight: 600;
+}
+
+    .shortlist-meta-chip i {
+        font-size: 10px;
+        opacity: 0.8;
+    }
+
+.shortlist-meta-chip--accent {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* ---- Requisition shortlist tweaks (procurement-specific) ----------------- */
+.requisition-shortlist .shortlist-row {
+    padding: 12px 14px 12px 12px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    left: 0;
+    margin: 4px 6px;
+    background: #ffffff;
+}
+
+    .requisition-shortlist .shortlist-row:hover {
+        border-color: #cbd5e1;
+        background: #fafbfd;
+    }
+
+.requisition-shortlist .dx-list-item.dx-state-selected > .dx-list-item-content > .shortlist-row {
+    border-color: #4ea1d8;
+    background: rgba(14, 165, 233, 0.06);
+    box-shadow: 0 1px 6px rgba(14, 165, 233, 0.15);
+}
+
+.requisition-shortlist .shortlist-row:before {
+    display: none;
+}
+
+/* ============================================================
+       Asset Category picker — list inside dxPopup
+       ============================================================ */
+.asset-picker-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--ap-bg, #f8fafc);
+}
+
+    .asset-picker-body > [dx-list],
+    .asset-picker-body .dx-list {
+        flex: 1;
+        min-height: 0;
+    }
+
+.asset-picker-list .dx-list-search {
+    padding: 8px 12px;
+    background: var(--ap-surface, #fff);
+    border-bottom: 1px solid var(--ap-border);
+}
+
+/* ---- GRN Cost vs Pending Payment chart card (right of tree-list) ---------- */
+.ap-grn-chart-card .card-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 360px;
+}
+
+.ap-grn-chart-card .btn-group .btn {
+    padding: 2px 10px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ---- Transfer / Allocation drawer (right-side slide-in) -------------------- */
+.asset-transfer-drawer .dx-overlay-content,
+.asset-allocation-drawer .dx-overlay-content {
+    box-shadow: -16px 0 40px rgba(15, 23, 42, 0.18);
+    border-radius: 0;
+}
+
+    .asset-transfer-drawer .dx-popup-content,
+    .asset-allocation-drawer .dx-popup-content {
+        padding: 0;
+        height: 100%;
+    }
+
+.asset-action-drawer {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--ap-surface, #fff);
+}
+
+.asset-action-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--ap-border, #e6eaef);
+    background: linear-gradient(180deg, #fafbfd 0%, #fff 100%);
+}
+
+.asset-action-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    color: #14366a;
+}
+
+    .asset-action-title .dx-icon {
+        font-size: 18px;
+        color: #4ea1d8;
+    }
+
+.asset-action-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 11px;
+    background: #4ea1d8;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.asset-action-close {
+    background: none;
+    border: 0;
+    color: #64748b;
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: background 0.15s;
+}
+
+    .asset-action-close:hover {
+        background: #f1f5f9;
+        color: #14366a;
+    }
+
+.asset-action-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--ap-border, #e6eaef);
+}
+
+.asset-action-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: #eef4fb;
+    color: #14366a;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.asset-action-from {
+    padding: 12px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--ap-border, #e6eaef);
+    font-size: 13px;
+    color: #475569;
+}
+
+    .asset-action-from > div {
+        margin: 2px 0;
+    }
+
+    .asset-action-from strong {
+        color: #14366a;
+        margin-right: 4px;
+    }
+
+.asset-action-from-label,
+.asset-action-to-label {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.asset-action-body {
+    flex: 1;
+    min-height: 0;
+    padding: 14px 18px;
+    overflow: auto;
+}
+
+.asset-action-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--ap-border, #e6eaef);
+    background: #fafbfd;
+}
+
+/* ==================== Asset detail offcanvas (Bootstrap 5 + dxForm) ==================== */
+.asset-detail-offcanvas {
+    width: 65% !important;
+}
+
+/* Light header (matches the CRM Contact canvas): white bg, soft avatar,
+   dark name, and a green status dot + label. */
+.asset-detail-offcanvas .asset-detail-hero {
+    align-items: flex-start;
+    padding: 18px 18px 16px;
+    background: var(--ap-surface, #fff);
+    color: var(--ap-heading, #11142b);
+    border-bottom: 1px solid var(--ap-border, #e6eaef);
+}
+
+.asset-detail-hero-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+}
+
+.asset-detail-hero-text {
+    min-width: 0;
+}
+
+/* Right side of the detail header: custody chips + close button. */
+.asset-detail-hero-right {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.asset-detail-hero-tags {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.asset-detail-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 240px;
+    padding: 3px 10px; 
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    background: var(--ap-inset, #f1f5f9);
+    color: var(--ap-text, #2d3344); 
+}
+
+    .asset-detail-tag .dx-icon {
+        font-size: 13px;
+    }
+
+.asset-detail-tag-type {
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-size: 10px;
+    opacity: 0.7;
+}
+
+.asset-detail-tag-val {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+/* Type-coded tints: transfer = info/blue, allocation = success/green. */
+/*.asset-detail-tag--transfer {
+    background: var(--ap-info-tint, rgba(37, 99, 235, 0.12));
+    color: var(--ap-info, #2563eb);
+    border-color: transparent;
+}*/
+
+.asset-detail-tag--alloc {
+    background: var(--ap-success-tint, rgba(30, 166, 114, 0.12));
+    color: var(--ap-success, #1ea672);
+    border-color: transparent;
+}
+
+.asset-detail-avatar {
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--ap-inset, #f1f5f9);
+    border: 1px solid var(--ap-border, #e6eaef);
+    color: var(--ap-primary, #1976d2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.asset-detail-name {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ap-heading, #11142b);
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asset-detail-sub {
+    font-size: 12.5px;
+    color: var(--ap-muted, #68696d);
+    margin-top: 2px;
+}
+
+/* Depreciation progress bar in the header (replaces the status pill). */
+.asset-detail-depbar {
+    margin-top: 10px;
+    min-width: 220px;
+    max-width: 360px;
+}
+    .asset-detail-depbar .dx-progressbar-container {
+        height: 35px;
+        margin: 0px;
+        padding: 0px; 
+        background: transparent !important;
+        cursor: text;
+    }
+   .asset-detail-depbar .dx-progressbar-status {
+        top: -27px;
+        left: 7px;
+        overflow: hidden;
+        font-weight: 600; 
+        margin-right: 3px;
+        color: #444444 !important;
+    }
+    .asset-detail-depbar .dx-progressbar-range {
+        padding: 0px;
+        margin: 0px;
+        border: 0px solid transparent;
+        transition: all ease-in-out 0.5s !important;
+        /*background-size: 400%;
+    animation: cell-progress-animation 60s infinite alternate;*/
+        /*will-change: background-position;*/
+    }
+    .asset-detail-depbar .completed .dx-progressbar-range {
+        background-color: #2bce35d1;
+    }
+    .asset-detail-depbar .asset-underPogress .dx-progressbar-range {
+        background: #7cbf8edb !important;
+    }
+    /*.asset-detail-depbar .dx-progressbar-status {
+        font-size: 11.5px;
+        color: var(--ap-muted, #68696d);
+        margin-bottom: 3px;
+    }*/
+
+/* dxForm group captions tinted to the panel accent. */
+.asset-detail-offcanvas .offcanvas-body {
+    padding: 10px;
+    background-color: var(--body-bg) !important;
+}
+.asset-detail-offcanvas .offcanvas-body .asset-body-detail {
+    background-color: #ffffff;
+    padding:17px;
+}
+
+.asset-detail-offcanvas .dx-form-group-caption {
+    color: var(--ap-primary, #1976d2);
+    font-weight: 700;
+    border:0px;
+}
+.asset-detail-offcanvas .dx-field-item-label-text{
+     color:#868686;
+}
+
+/* Flat editors at rest: drop the borders/underlines for a clean profile look. */
+.asset-detail-offcanvas .dx-form .dx-texteditor.dx-editor-outlined,
+.asset-detail-offcanvas .dx-form .dx-texteditor.dx-editor-underlined,
+.asset-detail-offcanvas .dx-form .dx-texteditor.dx-editor-filled {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+}
+
+    .asset-detail-offcanvas .dx-form .dx-texteditor.dx-editor-outlined::after,
+    .asset-detail-offcanvas .dx-form .dx-texteditor.dx-editor-underlined::after,
+    .asset-detail-offcanvas .dx-form .dx-texteditor.dx-editor-filled::after {
+        display: none;
+    }
+
+/* Editable affordance: reveal a subtle underline on hover, primary on focus. */
+/*.asset-detail-offcanvas .dx-form .dx-texteditor.dx-state-hover {
+    border-bottom: 1px solid var(--ap-border, #e6eaef);
+}*/
+
+/*.asset-detail-offcanvas .dx-form .dx-texteditor.dx-state-focused {
+    border-bottom: 1px solid var(--ap-primary, #1976d2);
+}*/
+
+.asset-detail-offcanvas .dx-form .dx-texteditor-input {
+    padding-left: 7px;
+    padding-right: 7px;
+    color: #393a3b;
+    font-weight: 500;
+    /*background-color: #8db1ca45;*/
+}
+
+.asset-detail-offcanvas .dx-form .dx-texteditor-container {
+    background-color: #8db1ca45;
+    border-radius: 3px;
+}
+/*.asset-detail-offcanvas .dx-form .dx-field-item-content { 
+    background-color: #8db1ca45 !important;
+}*/
+
+/* ---- Detail sub-records tab panel ---- */
+/* ---- Detail charts row (3-up, responsive) ---- */
+.asset-detail-charts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+@media (max-width: 992px) {
+    .asset-detail-charts { grid-template-columns: 1fr; }
+}
+
+.asset-chart-card {
+    background: #fff;
+    border: 1px solid var(--ap-border, #e6eaef);
+    border-radius: var(--ap-r-lg, 10px);
+    padding: 12px;
+    box-shadow: var(--ap-elev-1);
+}
+
+.asset-chart-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ap-heading, #11142b);
+    margin-bottom: 8px;
+}
+
+.asset-chart-card--empty {
+    display: flex;
+    flex-direction: column;
+}
+
+.asset-chart-empty {
+    flex: 1;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed var(--ap-border, #e6eaef);
+    border-radius: var(--ap-r, 6px);
+    color: var(--ap-muted, #68696d);
+    font-size: 12.5px;
+}
+
+.asset-detail-tabs {
+    margin-top: 14px;
+    border-top: 1px solid var(--ap-border, #e6eaef);
+    padding-top: 12px;
+    background-color:#fff;
+}
+
+.asset-detail-tabpanel .dx-tabpanel-tabs .dx-tab {
+    padding: 8px 14px;
+}
+
+/* Empty-state shown in each not-yet-wired tab. */
+.asset-detail-tab-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 34px 20px;
+    color: var(--ap-muted, #68696d);
+}
+
+    .asset-detail-tab-empty .dx-icon {
+        font-size: 34px;
+        opacity: 0.5;
+        margin-bottom: 10px;
+    }
+
+.asset-detail-tab-empty-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ap-heading, #11142b);
+}
+
+.asset-detail-tab-empty-sub {
+    font-size: 12.5px;
+    margin-top: 2px;
+}
+
+/* Grouped Allocation-Type dropdown — group header (TYPE_NAME). */
+.ap-type-group {
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ap-primary, #1976d2);
+}
+
+/* Sticky footer actions. */
+.asset-detail-foot {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--ap-border, #e6eaef);
+    background: #fafbfd;
+}
+
+    .asset-detail-foot .dx-icon { margin-right: 4px; }
+
+/* ---- Toolbar Transfer / Allocate buttons (selection-driven) --------------- */
+.asset-tb-transfer,
+.asset-tb-allocate {
+    margin-left: 4px;
+}
+
+    .asset-tb-transfer .dx-button-content,
+    .asset-tb-allocate .dx-button-content {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+.asset-tb-transfer-label,
+.asset-tb-allocate-label {
+    font-weight: 600;
+}
+
+.asset-tb-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #4ea1d8;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 2px;
+}
+
+
+.dx-treelist .dx-link,.dx-datagrid .dx-link{
+    /*color:#2a7c7a;*/
+    color:#0d7bbb;
+}
+
+/*.dx-texteditor.dx-editor-filled{
+    background-color: rgb(96 173 234 / 8%);
+}
+.dx-texteditor.dx-editor-filled :hover{
+    background-color: rgb(116 187 243 / 0.08);
+}*/
+.form-tab-panel-popup.primaryPopup .dx-popup-title.dx-toolbar {
+    background: #f1f1f1;
+}
+.dx-popup-title.dx-toolbar {
+    background: #f1f1f1;
+}
+/* ==================== Quick Actions — always-expanded FAB-style stack ============ */
+.ap-quick-actions {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 60;                 /* above content, below dxPopup overlays */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+    pointer-events: none;        /* gaps pass clicks through; buttons re-enable */
+}
+
+.ap-quick-action {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+    animation: ap-quick-action-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+
+    .ap-quick-action:nth-child(1) { animation-delay: 60ms; }
+    .ap-quick-action:nth-child(2) { animation-delay: 130ms; }
+    .ap-quick-action:nth-child(3) { animation-delay: 200ms; }
+    .ap-quick-action:nth-child(n+4) { animation-delay: 270ms; }
+
+@keyframes ap-quick-action-in {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.ap-quick-action-label {
+    background: var(--ap-surface, #fff);
+    color: var(--ap-heading, #11142b);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: var(--ap-r, 6px);
+    box-shadow: var(--ap-elev-1, 0 1px 3px rgba(0,0,0,0.12));
+    white-space: nowrap;
+}
+
+.ap-quick-action-icon {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--ap-primary, #1976d2);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 6px 16px -4px rgba(25, 118, 210, 0.6);
+    transition: transform .18s ease, background-color .18s ease;
+}
+
+    .ap-quick-action:hover .ap-quick-action-icon {
+        transform: scale(1.08);
+        background: var(--ap-primary-2, #42a5f5);
+    }
+
+    .ap-quick-action:active .ap-quick-action-icon {
+        transform: scale(0.95);
+    }
+
+@media (prefers-reduced-motion: reduce) {
+    .ap-quick-action {
+        animation: none !important;
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.dx-popup-wrapper > .dx-overlay-content {
+    /*box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);*/
+    border-radius: 0px;
+    background-color: #f8f8f8;
+}
+/* ============================================================
+   LPO rail — left of the requisitions grid (listPopup shortlist style)
+   ============================================================ */
+.pw-lpo-rail {
+    background: var(--ap-surface, #fff);
+    border: 1px solid var(--ap-border, #e4e7ee);
+    border-radius: 12px;
+    overflow: hidden;
+    height: 100%;
+    box-shadow: 0 1px 2px rgba(17, 20, 43, 0.05);
+}
+
+.pw-lpo-rail-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ap-heading, #11142b);
+    border-bottom: 1px solid var(--ap-border, #e4e7ee);
+    background: var(--ap-inset, #f8fafc);
+}
+
+    .pw-lpo-rail-head i { color: #1D5A8A; }
+
+/* Filter strip under the rail head — holds the supplier lookup for the list */
+.pw-lpo-rail-tools {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--ap-border, #e4e7ee);
+    background: var(--ap-surface, #fff);
+}
+
+.pw-lpo-rail-count {
+    margin-left: auto;
+    min-width: 22px;
+    height: 20px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #1D5A8A;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+    letter-spacing: 0;
+}
+
+/* Refresh button in the rail header */
+.pw-rail-refresh {
+    margin-left: 8px;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ap-muted, #68696d);
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color .15s ease, color .15s ease, transform .3s ease;
+}
+
+    .pw-rail-refresh:hover {
+        background: rgba(29, 90, 138, 0.10);
+        color: #1D5A8A;
+    }
+
+    .pw-rail-refresh:hover i {
+        transform: rotate(90deg);
+    }
+
+    .pw-rail-refresh i {
+        font-size: 13px;
+        transition: transform .3s ease;
+    }
+
+.pw-lpo-list.dx-list {
+    border: 0;
+    background: transparent;
+    padding: 6px;
+}
+
+    .pw-lpo-list .dx-list-item { background: transparent; }
+
+/* Per-row action buttons on the Pending Orders list (receive / GRNs) */
+.pw-po-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 8px;
+    flex-shrink: 0;
+}
+
+.pw-po-btn {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    color: #1D5A8A;
+    background: rgba(29, 90, 138, 0.08);
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, transform .15s ease;
+}
+
+    .pw-po-btn:hover {
+        background: #1D5A8A;
+        color: #fff;
+        transform: translateY(-1px);
+    }
+
+/* ===== Vendor summary panel (vendor form popup) — totals + donut ===== */
+.pw-vendor-summary {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    align-items: center;
+    padding: 6px 4px 14px;
+}
+.pw-vsum-kpis { display: flex; flex-direction: column; gap: 10px; }
+.pw-vsum-kpi {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--ap-surface, #ffffff);
+    border: 1px solid var(--ap-border, #e4e7ee);
+    box-shadow: 0 1px 2px rgba(17, 20, 43, 0.05);
+}
+.pw-vsum-lbl { font-size: 12px; font-weight: 600; color: var(--ap-muted, #68696d); letter-spacing: .01em; }
+.pw-vsum-val { font-size: 21px; font-weight: 800; color: var(--ap-text, #2d3344); }
+.pw-vsum-kpi--paid    { border-inline-start: 3px solid #059669; }
+.pw-vsum-kpi--paid    .pw-vsum-val { color: #059669; }
+.pw-vsum-kpi--pending { border-inline-start: 3px solid #e11d48; }
+.pw-vsum-kpi--pending .pw-vsum-val { color: #e11d48; }
+
+@media (max-width: 720px) {
+    .pw-vendor-summary { grid-template-columns: 1fr; }
+}
+
+/* ── Team Activity roster (profile photo + LPO/GRN counts) ───────────────── */
+.pw-team-roster {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 4px 2px 12px;
+}
+.pw-team-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px 8px 8px;
+    border: 1px solid var(--ap-border, #e3e6ef);
+    border-radius: 12px;
+    background: var(--ap-card, #fff);
+    min-width: 210px;
+    box-shadow: 0 1px 2px rgba(17, 20, 43, 0.05);
+}
+.pw-team-avatar {
+    position: relative;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+}
+.pw-team-avatar img {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e3e6ef;
+    background: #f1f5f9;
+}
+.pw-team-avatar-fallback {
+    display: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    background: #1D5A8A;
+    color: #fff;
+    font-size: 16px;
+    position: absolute;
+    inset: 0;
+}
+.pw-team-info { min-width: 0; }
+.pw-team-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ap-text, #2d3344);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+.pw-team-counts { display: flex; gap: 6px; margin-top: 4px; }
+.pw-team-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.pw-team-chip--lpo { background: rgba(29, 90, 138, .10); color: #1D5A8A; }
+.pw-team-chip--grn { background: rgba(30, 166, 114, .12); color: #157f57; }
+
+/* ── Call view (complaints + materials) ─────────────────────────────────── */
+.pw-callview-host { padding: 4px 2px; }
+.pw-callview-empty { padding: 22px; color: var(--ap-muted, #94a3b8); font-size: 14px; text-align: center; }
+.pw-callview-cmp-title { display: flex; align-items: center; gap: 10px; }
+.pw-callview-cmp-name { font-size: 14px; font-weight: 700; color: var(--ap-text, #2d3344); }
+.pw-callview-chip {
+    padding: 1px 9px; border-radius: 7px; font-size: 11px; font-weight: 700;
+    background: rgba(124, 58, 237, .12); color: #6d28d9;
+}
+.pw-callview-cmp-body { padding: 6px 2px 10px; }
+.pw-callview-sub-h {
+    font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--ap-muted, #68696d); margin: 0 0 8px 2px;
+}
+
+/* ── Global search results dropdown (popover) — style hook: pw-search-popover ── */
+.pw-search-popover .dx-popover-arrow { display: none; }        /* dropdown, not a bubble */
+.pw-search-popover .dx-overlay-content {
+    background: transparent !important;
+    border: none;
+    box-shadow: none;
+    /*border-radius: 12px;*/
+    overflow: visible;
+}
+.pw-search-popover .dx-popup-content { padding: 7px; background-color: transparent; }
+.pw-search-list {
+    border: none;
+    padding: 3px !important;
+    padding-top: 0px !important;
+    /*border-radius: 12px;*/
+    background-color: #dadee2bf !important;
+}
+/* Result rows keep their default (non-tinted) surface — only the list gap is blue. */
+ 
+
+/* ── Soft modern alert dialog (showAlert / #showAlertPopup) ──────────────── */
+.pw-alert-popup .dx-overlay-content {
+    border: none !important;
+    border-radius: 7px !important;
+    overflow: hidden;
+    background: var(--ap-card, #ffffff);
+    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.24), 0 6px 16px rgba(15, 23, 42, 0.10);
+}
+/* Title bar — no divider, roomy, holds the icon + heading */
+.pw-alert-popup .dx-popup-title {
+    border-bottom: none !important;
+    background: transparent;
+    padding: 22px 22px 4px 22px;
+    min-height: 0;
+}
+.pw-alert-head { display: flex; align-items: center; gap: 13px; }
+.pw-alert-ico {
+    flex: 0 0 44px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(245, 158, 11, 0.14);
+    color: #d97706;
+    font-size: 20px;
+}
+.pw-alert-title-text {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: .01em;
+    color: var(--ap-text, #2d3344);
+}
+/* Message body — aligned under the heading, muted and easy to read */
+.pw-alert-popup .dx-popup-content {
+    padding: 6px 24px 10px 79px;
+    max-height: 58vh;
+    overflow: auto;
+}
+.pw-alert-popup .dx-popup-content center { text-align: left; }
+.pw-alert-popup .dx-popup-content h4 {
+    margin: 0;
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 1.6;
+    color: var(--ap-muted, #5b6472);
+    word-break: break-word;
+}
+/* Footer + primary action button */
+.pw-alert-popup .dx-popup-bottom.dx-toolbar {
+    border-top: none !important;
+    padding: 8px 22px 20px 22px;
+}
+.pw-alert-ok.dx-button {
+    border-radius: 11px;
+    background: #1D5A8A;
+    border-color: #1D5A8A;
+    box-shadow: 0 6px 16px rgba(29, 90, 138, 0.28);
+}
+.pw-alert-ok.dx-button .dx-button-content { padding: 9px 26px; }
+.pw-alert-ok.dx-button .dx-button-text {
+    font-weight: 700;
+    letter-spacing: .01em;
+    text-transform: none;
+    color: #ffffff;
+}
+.pw-alert-ok.dx-button.dx-state-hover { background: #17496f; border-color: #17496f; }
+/* Close (x) — soften it into a light round button */
+.pw-alert-popup .dx-closebutton {
+    border-radius: 50%;
+    opacity: .55;
+}
+.pw-alert-popup .dx-closebutton:hover { opacity: 1; background: rgba(15, 23, 42, 0.06); }
+
+@media (prefers-color-scheme: dark) {
+    .pw-alert-popup .dx-overlay-content {
+        background: var(--ap-card, #1e232e);
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    }
+}
+
+/* ── Workspace view switcher (Requisitions + Document Explorer tabs) ─────── */
+.pw-view-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+.pw-view-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    border: 1px solid var(--ap-border, #e3e6ef);
+    border-radius: 9px;
+    background: var(--ap-card, #fff);
+    color: var(--ap-muted, #68696d);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.pw-view-tab i { font-size: 13px; opacity: .85; }
+.pw-view-tab:hover {
+    color: var(--ap-text, #2d3344);
+    border-color: #c9d2e6;
+    background: rgba(37, 99, 235, .04);
+}
+.pw-view-tab.is-active {
+    background: #1D5A8A;
+    border-color: #1D5A8A;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(29, 90, 138, .25);
+}
+.pw-view-tab.is-active i { opacity: 1; }
+
+.pw-vendors-panel {
+    margin-bottom: 14px;
+}

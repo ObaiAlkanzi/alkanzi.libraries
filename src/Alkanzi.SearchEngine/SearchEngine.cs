@@ -37,8 +37,11 @@ public sealed class SearchEngine : ISearchEngine
     }
 
     private static bool IsAllowed(string type, SearchQuery q, SearchScope s)
-        => (q.Types is null || q.Types.Count == 0 || q.Types.Contains(type))
-        && (s.AllowedTypes is null || s.AllowedTypes.Contains(type));
+        // A wildcard provider ("*") backs many entity types from one source (e.g. a unified
+        // index). It always runs and applies the type/scope filters itself.
+        => type == "*"
+        || ((q.Types is null || q.Types.Count == 0 || q.Types.Contains(type))
+            && (s.AllowedTypes is null || s.AllowedTypes.Contains(type)));
 
     private static bool IsBranchVisible(SearchHit h, SearchScope s)
         => s.AllowedBranches is null || h.BranchId == 0 || s.AllowedBranches.Contains(h.BranchId);

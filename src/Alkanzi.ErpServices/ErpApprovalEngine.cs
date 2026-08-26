@@ -253,13 +253,13 @@ public sealed class ErpApprovalEngine : IErpApprovalEngine
 
        
         int UserLevelId = row.APPROVE_LEVEL +1;
-        if (actingUser == 21)
-        {
-            // workflow is nullable here (no workflow configured for the form), and
-            // FinalLevel is a non-nullable int on ResolvedWorkflow — so fall back to
-            // the ordinary one-level climb rather than forcing a jump we can't resolve.
-            UserLevelId = workflow?.FinalLevel ?? UserLevelId;
-        }
+        //if (actingUser == 21)
+        //{
+        //    // workflow is nullable here (no workflow configured for the form), and
+        //    // FinalLevel is a non-nullable int on ResolvedWorkflow — so fall back to
+        //    // the ordinary one-level climb rather than forcing a jump we can't resolve.
+        //    UserLevelId = workflow?.FinalLevel ?? UserLevelId;
+        //}
         var level = workflow?.Levels.FirstOrDefault(l => l.LEVEL_ID == UserLevelId);
         // The level the action is taken at, before the transition moves it.
         var fromLevel = row.APPROVE_LEVEL;

@@ -11,7 +11,7 @@
     <Nullable>enable</Nullable>
 
     <PackageId>Alkanzi.ErpServices</PackageId>
-    <Version>4.0.3</Version>
+    <Version>4.0.6</Version>
     <Authors>Obai Alkanzi</Authors>
     <Description>ERP-specific approval and workflow engine for the Fakhruddin ERP on Oracle: dispatches document types to their transaction tables, moves approval state (submit / approve / reject / rework), resolves workflows, runs each level's UPDATE_SENTENCE, and writes the approval log — plus an Oracle stored-procedure / function service over the same connection.</Description>
     <PackageTags>erp;approval;workflow;oracle;efcore;entityframeworkcore;dotnet;softdelete;audit</PackageTags>
@@ -38,7 +38,7 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="[8.0.11,9.0.0)" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="[8.0.11,9.0.0)" />
-    <PackageReference Include="Oracle.EntityFrameworkCore" Version="8.23.90" />
+    <PackageReference Include="Oracle.EntityFrameworkCore" Version="8.23.60" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">

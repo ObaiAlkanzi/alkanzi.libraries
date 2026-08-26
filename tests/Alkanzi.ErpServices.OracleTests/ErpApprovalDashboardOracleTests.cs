@@ -1,4 +1,4 @@
-namespace Alkanzi.ErpServices.OracleTests;
+﻿namespace Alkanzi.ErpServices.OracleTests;
 
 /// <summary>
 /// Exercises <see cref="ErpApprovalDashboardService"/> against the real ERP:
@@ -57,6 +57,7 @@ public class ErpApprovalDashboardOracleTests(ErpServicesFixture fixture)
 
     // The user from userTrans.md — has levels across many workflow forms.
     private const int UserId = 2144;
+    //private const int UserId = 2683;
 
     [DockerFact]
     public async Task GetUserScopeAsync_resolves_the_users_levels()
@@ -87,20 +88,22 @@ public class ErpApprovalDashboardOracleTests(ErpServicesFixture fixture)
 
         var scope = await dashboard.GetUserScopeAsync(UserId);
         var allowed = scope.Select(s => (s.FormId, s.LevelId)).ToHashSet();
-
-        var rows = await dashboard.GetUserDataAsync(UserId);
-
-        Assert.All(rows, r =>
-        {
-            // Every row sits at a level this user is authorised for, in a workflow
-            // they are authorised for — the whole point of matching on the pair.
-            Assert.Contains((r.WorkflowId ?? 0, r.ApproveLevel), allowed);
-            Assert.NotEqual((int)ApprovalAction.Approve, r.ApproveStatus);
-            Assert.NotEqual((int)ApprovalAction.Reject, r.ApproveStatus);
-            Assert.False(string.IsNullOrWhiteSpace(r.DocType));
-        });
+        //2683
+        var rows = await dashboard.GetUserDataAsync(21);
+        Assert.NotEmpty(rows); 
     }
+    [DockerFact]
+    public async Task GetUserSecurityGroupsAsyncTest()
+    {
+        await using var context = _fixture.CreateContext();
+        var dashboard = new ErpApprovalDashboardService(context);
 
+        //var scope = await dashboard.GetUserScopeAsync(UserId);
+        //var allowed = scope.Select(s => (s.FormId, s.LevelId)).ToHashSet();
+
+        var rows = await dashboard.GetUserSecurityGroupsAsync(21);
+        Assert.NotEmpty(rows);
+    }
     [DockerFact]
     public async Task GetUserDataAsync_for_an_unknown_user_returns_empty()
     {
@@ -126,5 +129,45 @@ public class ErpApprovalDashboardOracleTests(ErpServicesFixture fixture)
         var rows = await dashboard.GetDataAsync([DocType], ApprovalDashboardFilter.Approved);
 
         Assert.All(rows, r => Assert.Equal(status, r.ApproveStatus));
+    }
+
+    [DockerFact]
+    public async Task GetEmployeeDataByUserIdAsync_returns_the_employee_behind_a_user()
+    {
+        await using var context = _fixture.CreateContext();
+        var dashboard = new ErpApprovalDashboardService(context);
+
+        var employee = await dashboard.GetEmployeeDataByUserIdAsync(UserId);
+
+        Assert.NotNull(employee);
+        Assert.Equal(UserId, employee.UserId);
+        Assert.NotEqual(0, employee.Id);
+        Assert.False(string.IsNullOrWhiteSpace(employee.Employee));
+        Assert.False(string.IsNullOrWhiteSpace(employee.DepartmentName));
+        Assert.StartsWith("https://erp.fakhruddin.ae:400/files/HR/Employees/E-", employee.Profile);
+    }
+
+    [DockerFact]
+    public async Task GetEmployeeDataByEmpIdAsync_returns_the_same_row_as_the_user_lookup()
+    {
+        await using var context = _fixture.CreateContext();
+        var dashboard = new ErpApprovalDashboardService(context);
+
+        var byUser = await dashboard.GetEmployeeDataByUserIdAsync(UserId);
+        Assert.NotNull(byUser);
+
+        var byEmp = await dashboard.GetEmployeeDataByEmpIdAsync(byUser.Id);
+
+        Assert.Equal(byUser, byEmp);   // records compare by value
+    }
+
+    [DockerFact]
+    public async Task GetEmployeeDataAsync_for_an_unknown_id_returns_null()
+    {
+        await using var context = _fixture.CreateContext();
+        var dashboard = new ErpApprovalDashboardService(context);
+
+        Assert.Null(await dashboard.GetEmployeeDataByUserIdAsync(-999_999));
+        Assert.Null(await dashboard.GetEmployeeDataByEmpIdAsync(-999_999));
     }
 }

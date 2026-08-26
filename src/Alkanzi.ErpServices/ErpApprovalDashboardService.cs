@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Oracle.ManagedDataAccess.Client;
@@ -116,6 +116,30 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
                 Str(reader, "MAIN_DOC_TYPE")),
             cancellationToken).ConfigureAwait(false);
 
+    // A user's security groups (id + name). GROUP BY collapses a group reached
+    // through several division rows so it appears once. LEFT JOIN so a group with no
+    // master row still returns (NAME null).
+    private const string UserSecurityGroupsSql = """
+        SELECT   A.SECURITY_GROUP_ID AS SECURITY_GROUP_ID,
+                 B.NAME              AS NAME
+        FROM     SM_DIVISION_SECURITY_GROUPS_USERS A
+                 LEFT JOIN SM_SECURITY_GROUPS_MASTER B ON B.ID = A.SECURITY_GROUP_ID
+        WHERE    A.IS_DELETED = 0
+          AND    A.USER_ID = :p_user
+        GROUP BY A.SECURITY_GROUP_ID, B.NAME
+        """;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<UserSecurityGroup>> GetUserSecurityGroupsAsync(
+        int userId, CancellationToken cancellationToken = default)
+        => await QuerySqlAsync(
+            UserSecurityGroupsSql,
+            command => command.Parameters.Add(new OracleParameter("p_user", OracleDbType.Int32) { Value = userId }),
+            reader => new UserSecurityGroup(
+                Int(reader, "SECURITY_GROUP_ID"),
+                Str(reader, "NAME")),
+            cancellationToken).ConfigureAwait(false);
+
     // Oracle caps an IN list at 1000 entries; stay well under it.
     private const int PairChunkSize = 250;
 
@@ -148,8 +172,10 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
         var rows = new List<ApprovalDashboardRow>();
         foreach (var table in byTable)
         {
+            // Pending-for-approval sits one level BELOW the user's authorised level:
+            // a doc awaiting the level-L approver is currently at APPROVE_LEVEL = L - 1.
             var pairs = table
-                .Select(s => (Form: s.FormId, Level: s.LevelId))
+                .Select(s => (Form: s.FormId, Level: s.LevelId - 1))
                 .Distinct()
                 .ToList();
 
@@ -191,19 +217,23 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
         var where = new List<string> { "(IS_DELETED IS NULL OR IS_DELETED != 1)" };
         switch (filter)
         {
-            case ApprovalDashboardFilter.Pending: where.Add("APPROVE_STATUS NOT IN (3, 4)"); break;   // 3 reject, 4 approve
+            // "Pending for approval" = actively awaiting a decision: submitted (1) or
+            // reworked (2). Drafts/suspended (0) and terminal (3 reject / 4 approve) are excluded.
+            case ApprovalDashboardFilter.Pending: where.Add("APPROVE_STATUS IN (1, 2)"); break;
             case ApprovalDashboardFilter.Approved: where.Add("APPROVE_STATUS = 4"); break;
             case ApprovalDashboardFilter.Rejected: where.Add("APPROVE_STATUS = 3"); break;
         }
 
         // Oracle's multi-column IN: the row is the user's only when BOTH the workflow
-        // and the level match. A null WORKFLOW_ID never matches, which is correct —
+        // and the level match. The pairs are built as (FormId, LevelId - 1) in
+        // GetUserDataAsync — a transaction awaiting the level-L approver currently sits
+        // at APPROVE_LEVEL = L - 1. A null WORKFLOW_ID never matches, which is correct —
         // there is no workflow to authorise against.
         var tuples = string.Join(", ", pairs.Select((_, i) => $"(:w{i}, :l{i})"));
         where.Add($"(WORKFLOW_ID, APPROVE_LEVEL) IN ({tuples})");
 
         var sql =
-            "SELECT ID, DOC_DATE, APPROVE_STATUS, APPROVE_LEVEL, WORKFLOW_ID, CREATED_BY, CREATED_AT " +
+            "SELECT ID, DOC_DATE, APPROVE_STATUS, APPROVE_LEVEL, WORKFLOW_ID, CREATED_BY, CREATED_AT, BRANCH_ID, COMP_ID " +
             $"FROM {tableName} WHERE {string.Join(" AND ", where)}";
 
         try
@@ -233,7 +263,10 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
                         Int(reader, "CREATED_BY"),
                         NullableDate(reader, "CREATED_AT") ?? default,
                         s?.DisplayName,
-                        s?.MainDocType);
+                        s?.MainDocType,
+                        NullableInt(reader, "BRANCH_ID"),
+                        NullableInt(reader, "COMP_ID")
+                        );
                 },
                 cancellationToken).ConfigureAwait(false);
         }
@@ -274,6 +307,67 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
 
             return results;
         }, CommandType.Text, cancellationToken);
+
+    // --- Employee card (HRM_EMPLOYEE) ---
+
+    // One employee with their contract's department and designation, plus the
+    // profile-picture URL. The employee row carries PIC_NAME when a picture was
+    // uploaded; otherwise the ERP falls back to "<contract id>.jpg" in the same
+    // folder. Only active, non-deleted employees are returned. Ordered so that an
+    // employee with several contract rows (renewals, transfers) resolves to the
+    // current one — the highest contract id — and the caller takes the first row.
+    private const string EmployeeSql = """
+        SELECT A.ID                                  AS ID,
+               A.USER_ID                             AS USER_ID,
+               D.NAME                                AS DEPARTMENT_NAME,
+               A.FULL_NAME                           AS EMPLOYEE,
+               B.EMP_DEPARTMENT_ID                   AS EMP_DEPARTMENT_ID,
+               B.EMP_DESIGNATION_ID                  AS EMP_DESIGNATION_ID,
+               'https://erp.fakhruddin.ae:400/files/HR/Employees/E-'
+                 || LPAD(A.ID, 5, '0') || '/'
+                 || NVL(A.PIC_NAME, B.ID || '.jpg')  AS PROFILE
+        FROM   HRM_EMPLOYEE A,
+               HRM_EMPLOYEE_CONTRACT B,
+               FM_DEPARTMENT D
+        WHERE  A.ID = B.EMP_ID
+          AND  B.EMP_DEPARTMENT_ID = D.ID
+          AND  A.IS_DELETED = 0
+          AND  A.IS_ACTIVE = 1
+          AND  {0} = :p_id
+        ORDER BY B.ID DESC
+        """;
+
+    /// <inheritdoc />
+    public Task<ErpEmployee?> GetEmployeeDataByUserIdAsync(
+        int userId, CancellationToken cancellationToken = default)
+        => GetEmployeeAsync("A.USER_ID", userId, cancellationToken);
+
+    /// <inheritdoc />
+    public Task<ErpEmployee?> GetEmployeeDataByEmpIdAsync(
+        int employeeId, CancellationToken cancellationToken = default)
+        => GetEmployeeAsync("A.ID", employeeId, cancellationToken);
+
+    // Both lookups are the same query differing only in the column matched, and that
+    // column is a compile-time literal from the two callers above — never caller
+    // input — so the format is safe; the id itself is always bound.
+    private async Task<ErpEmployee?> GetEmployeeAsync(
+        string column, int id, CancellationToken cancellationToken)
+    {
+        var rows = await QuerySqlAsync(
+            string.Format(System.Globalization.CultureInfo.InvariantCulture, EmployeeSql, column),
+            command => command.Parameters.Add(new OracleParameter("p_id", OracleDbType.Int32) { Value = id }),
+            reader => new ErpEmployee(
+                Int(reader, "ID"),
+                Int(reader, "USER_ID"),
+                Str(reader, "EMPLOYEE"),
+                Str(reader, "DEPARTMENT_NAME"),
+                Int(reader, "EMP_DEPARTMENT_ID"),
+                Int(reader, "EMP_DESIGNATION_ID"),
+                Str(reader, "PROFILE")),
+            cancellationToken).ConfigureAwait(false);
+
+        return rows.Count > 0 ? rows[0] : null;
+    }
 
     // --- Department-employee panel (PANEL.DEPARTMENT_EMPLOYEES) ---
 
@@ -345,7 +439,7 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
         }
 
         var sql =
-            "SELECT ID, DOC_DATE, APPROVE_STATUS, APPROVE_LEVEL, WORKFLOW_ID, CREATED_BY, CREATED_AT " +
+            "SELECT ID, DOC_DATE, APPROVE_STATUS, APPROVE_LEVEL, WORKFLOW_ID, CREATED_BY, CREATED_AT, BRANCH_ID, COMP_ID " +
             $"FROM {menu.TableName!.Trim()} WHERE {string.Join(" AND ", where)}";
 
         try
@@ -369,7 +463,9 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
                     Int(reader, "CREATED_BY"),
                     NullableDate(reader, "CREATED_AT") ?? default,
                     menu.DisplayName,
-                    menu.MainDocType),
+                    menu.MainDocType,
+                    NullableInt(reader, "BRANCH_ID"),
+                    NullableInt(reader, "COMP_ID")),
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OracleException)

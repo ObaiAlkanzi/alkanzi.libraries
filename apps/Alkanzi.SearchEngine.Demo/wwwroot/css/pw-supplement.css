@@ -1,0 +1,45 @@
+/* ============================================================
+   Demo supplement — the handful of classes the Procurement
+   Workspace pulls from the ERP's custom-class.css / site.css,
+   reproduced here so the copied asset-panel/listPopup CSS is
+   self-sufficient in the demo.
+   ============================================================ */
+
+/* Popup top-toolbar icon buttons (minimise / fullscreen). */
+.management-toolbar-btn {
+    border: 0 !important;
+    background: transparent !important;
+}
+
+/* Popup save / status button tones (also used as grid status-cell backgrounds). */
+.custom-success-btn,
+.custom-success-btn:hover,
+.custom-success-btn .dx-icon,
+.dx-data-row.dx-state-hover > td.custom-success-btn {
+    background: #0f978d !important;
+    color: whitesmoke !important;
+}
+
+.custom-warning-btn,
+.custom-warning-btn:hover,
+.dx-data-row.dx-state-hover > td.custom-warning-btn {
+    background: #d97706 !important;
+    color: #fff !important;
+}
+
+.custom-danger-btn,
+.custom-danger-btn:hover,
+.dx-data-row.dx-state-hover > td.custom-danger-btn {
+    background: #e11d48 !important;
+    color: #fff !important;
+}
+
+/* Grid action glyphs. */
+.custom-cell-icon {
+    font-size: 15px;
+    line-height: 1;
+}
+
+/* The workspace fixes the toolbar to the top; give the page room + a light ground. */
+html, body { background: var(--ap-bg, #f4f6fa); }
+.pw-workspace .ap-main { padding-top: 8px; }

@@ -1,4 +1,4 @@
-namespace Alkanzi.ErpServices;
+﻿namespace Alkanzi.ErpServices;
 
 /// <summary>
 /// One approval row for a dashboard: the transaction's key fields plus the
@@ -14,7 +14,9 @@ public sealed record ApprovalDashboardRow(
     int CreatedBy,
     DateTime CreatedAt,
     string? DisplayName,
-    string? MainDocType);
+    string? MainDocType,
+    int? BranchId = null,
+    int? CompId = null);
 
 /// <summary>
 /// Which approval rows a dashboard query returns, by <c>APPROVE_STATUS</c>.
@@ -62,6 +64,16 @@ public sealed record UserApprovalScope(
     string? MainDocType);
 
 /// <summary>
+/// One security group a user belongs to — its id and name, from
+/// <c>SM_DIVISION_SECURITY_GROUPS_USERS</c> joined to <c>SM_SECURITY_GROUPS_MASTER</c>.
+/// </summary>
+/// <param name="SecurityGroupId">The security group id (<c>SECURITY_GROUP_ID</c>).</param>
+/// <param name="Name">The group's name, or null when the master row is missing (LEFT JOIN).</param>
+public sealed record UserSecurityGroup(
+    int SecurityGroupId,
+    string? Name);
+
+/// <summary>
 /// One row of the department-employee panel returned by
 /// <c>PANEL.DEPARTMENT_EMPLOYEES</c>: <c>ID</c>, <c>USER_ID</c>,
 /// <c>DEPARTMENT_NAME</c>, <c>EMPLOYEE</c>, <c>EMP_DEPARTMENT_ID</c>,
@@ -93,6 +105,28 @@ public sealed record DepartmentEmployee(
     public static bool IsOnlineStatus(string? status)
         => !string.IsNullOrWhiteSpace(status) && OnlineStatuses.Contains(status.Trim());
 }
+
+/// <summary>
+/// One employee's identity card: who they are, which department and designation
+/// their contract puts them in, and the URL of their profile picture. Read from
+/// <c>HRM_EMPLOYEE</c> joined to <c>HRM_EMPLOYEE_CONTRACT</c> and
+/// <c>FM_DEPARTMENT</c>; only active, non-deleted employees are returned.
+/// </summary>
+/// <param name="Id">The employee id (<c>HRM_EMPLOYEE.ID</c>).</param>
+/// <param name="UserId">The login user the employee is tied to (<c>HRM_EMPLOYEE.USER_ID</c>).</param>
+/// <param name="Employee">The employee's full name.</param>
+/// <param name="DepartmentName">The contract department's name (<c>FM_DEPARTMENT.NAME</c>).</param>
+/// <param name="DepartmentId">The contract's <c>EMP_DEPARTMENT_ID</c>.</param>
+/// <param name="DesignationId">The contract's <c>EMP_DESIGNATION_ID</c>.</param>
+/// <param name="Profile">Absolute URL of the profile picture, built from the employee id and <c>PIC_NAME</c>.</param>
+public sealed record ErpEmployee(
+    int Id,
+    int UserId,
+    string? Employee,
+    string? DepartmentName,
+    int DepartmentId,
+    int DesignationId,
+    string? Profile);
 
 /// <summary>
 /// Dashboard reads over the ERP: approval rows across the document types a user
@@ -165,5 +199,43 @@ public interface IErpApprovalDashboardService
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<IReadOnlyList<DepartmentEmployee>> GetDepartmentEmployeesAsync(
         int departmentId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The security groups a user belongs to (id + name), from
+    /// <c>SM_DIVISION_SECURITY_GROUPS_USERS</c> joined to the group master. A group
+    /// reached through several division rows is returned once.
+    /// </summary>
+    /// <param name="userId">The user (<c>SM_DIVISION_SECURITY_GROUPS_USERS.USER_ID</c>).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<UserSecurityGroup>> GetUserSecurityGroupsAsync(
+        int userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The employee behind a login user — <c>HRM_EMPLOYEE.USER_ID</c> lookup.
+    /// Returns <c>null</c> when the user has no active employee record (or none
+    /// with a contract that resolves to a department).
+    /// </summary>
+    /// <remarks>
+    /// An employee with several contract rows (renewals, transfers) resolves to the
+    /// most recent one — the highest <c>HRM_EMPLOYEE_CONTRACT.ID</c> — so the
+    /// department and designation returned are the current ones.
+    /// </remarks>
+    /// <param name="userId">The login user (<c>HRM_EMPLOYEE.USER_ID</c>).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ErpEmployee?> GetEmployeeDataByUserIdAsync(
+        int userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The same employee card as <see cref="GetEmployeeDataByUserIdAsync"/>, looked
+    /// up by employee id (<c>HRM_EMPLOYEE.ID</c>) instead of login user. Returns
+    /// <c>null</c> when there is no such active employee.
+    /// </summary>
+    /// <param name="employeeId">The employee (<c>HRM_EMPLOYEE.ID</c>).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<ErpEmployee?> GetEmployeeDataByEmpIdAsync(
+        int employeeId,
         CancellationToken cancellationToken = default);
 }

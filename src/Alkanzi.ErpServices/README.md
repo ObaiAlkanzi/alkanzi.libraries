@@ -348,7 +348,7 @@ services.AddErpApprovalDashboardService();
 // The host supplies the doc types the user may see (its own permission model).
 var rows = await dashboard.GetDataAsync(userDocTypes, ApprovalDashboardFilter.Pending);
 // rows: Id, DocType, DocDate, ApproveStatus, ApproveLevel, WorkflowId,
-//       CreatedBy, CreatedAt, DisplayName, MainDocType
+//       CreatedBy, CreatedAt, DisplayName, MainDocType, BranchId, CompId
 ```
 
 `ApprovalDashboardFilter` selects by status: **`All`**, **`Pending`** (not yet
@@ -366,7 +366,7 @@ by several doc types is filtered by `DOC_TYPE` so each menu sees only its own ro
 user can act on" — for that, pass a user id:
 
 ```csharp
-// The transactions actually sitting on this user's desk.
+// The transactions actually pending THIS user's approval.
 var mine = await dashboard.GetUserDataAsync(userId);           // Pending by default
 
 // Optional: the (workflow form, level) pairs behind that list — useful for menus,
@@ -374,11 +374,20 @@ var mine = await dashboard.GetUserDataAsync(userId);           // Pending by def
 var scope = await dashboard.GetUserScopeAsync(userId);
 // scope: FormId, LevelId, WorkflowName, LastLevel, TableName,
 //        DocType, DisplayName, MainDocType
+
+// The user's security groups (id + name), collapsed to one row per group.
+var groups = await dashboard.GetUserSecurityGroupsAsync(userId);
+// groups: SecurityGroupId, Name
 ```
 
 A user reaches a level through `SM_DIVISION_SECURITY_GROUPS_USERS` →
-`SM_WORKFLOW_LVL_SECURITY_GROUPS` → `SM_WORKFLOW_FORMS`, and rows are then matched on
-**(`WORKFLOW_ID`, `APPROVE_LEVEL`)** — the form and the level together.
+`SM_WORKFLOW_LVL_SECURITY_GROUPS` → `SM_WORKFLOW_FORMS`, and rows are matched on
+**(`WORKFLOW_ID`, `APPROVE_LEVEL`)** — the form and the level together — where the
+level is **one below** the user's authorised level. A transaction awaiting the
+level-`L` approver currently sits at `APPROVE_LEVEL = L - 1`, so `GetUserScopeAsync`
+returns `LevelId = L` while `GetUserDataAsync` matches `APPROVE_LEVEL = L - 1`.
+`Pending` additionally narrows to **`APPROVE_STATUS IN (1, 2)`** (submitted /
+reworked) — the rows actively awaiting a decision.
 
 Matching on document type alone is wrong twice over:
 
@@ -510,6 +519,37 @@ dotnet test tests/Alkanzi.ErpServices.OracleTests
 ```
 
 ## Version history
+
+### 4.0.5
+
+- **`GetUserDataAsync` now lists what is *pending for this user to approve*, matched one level below the user's authorised level.** Previously it matched transactions whose `APPROVE_LEVEL` equalled the user's scope `LEVEL_ID`. It now matches `APPROVE_LEVEL = LEVEL_ID - 1` — a transaction awaiting the level-L approver currently sits at `APPROVE_LEVEL = L - 1` — **and** narrows the Pending filter to `APPROVE_STATUS IN (1, 2)` (submitted / reworked, i.e. actively awaiting a decision) instead of `NOT IN (3, 4)` (which also let drafts/suspended through). Equivalent to:
+  ```sql
+  SELECT * FROM <table>
+   WHERE (WORKFLOW_ID, APPROVE_LEVEL) IN ((:form, :userLevel - 1), …)
+     AND APPROVE_STATUS IN (1, 2)
+  ```
+  Only the `GetUserDataAsync` path (`QueryUserTableAsync`) changed its level/status logic; `GetUserScopeAsync` is unchanged (the scope still returns the real `LEVEL_ID`).
+
+- **New `GetUserSecurityGroupsAsync(userId)`** on `IErpApprovalDashboardService` — returns the user's security groups as `UserSecurityGroup(SecurityGroupId, Name)` from `SM_DIVISION_SECURITY_GROUPS_USERS` joined to `SM_SECURITY_GROUPS_MASTER` (grouped, so a group reached through several division rows appears once).
+
+- **`ApprovalDashboardRow` now carries `BranchId` and `CompId` (both `int?`).** Both `GetDataAsync` and `GetUserDataAsync` select `BRANCH_ID` and `COMP_ID` from the transaction table and map them. They're optional trailing properties, so existing positional construction is unaffected. A table without either column is skipped by the same `OracleException` guard that already skips tables missing the other approval columns.
+
+### 4.0.4
+
+- **Pinned the Oracle provider back to `8.23.60` (net8) to restore the `23.6.0`
+  managed driver.** `8.23.90` pulls `Oracle.ManagedDataAccess.Core` in the
+  `[23.9.0, 24.0.0)` range; the **23ai (23.9.0) managed driver attempts a
+  container-scoped step during connection-pool establishment that an Oracle 19c
+  NON-CDB rejects** with `ORA-65090: operation only allowed in a container
+  database`. The app sees it as `ORA-50092: The requested connection could not be
+  established`, **intermittently and app-wide** (only when the pool opens a *new*
+  physical connection — so single-connection tools connect fine while a busy app
+  fails). `23.6.0` does not do this. No code or API change: the Oracle ADO.NET
+  types the procedure wrappers use compile unchanged against both provider majors.
+  The `net10` target (`10.23.26200`) is unchanged.
+
+  Symptom: sporadic `ORA-50092` / `ORA-65090` on connection open across unrelated
+  endpoints and background jobs on a 19c non-CDB, after upgrading past `8.23.60`.
 
 ### 4.0.3
 

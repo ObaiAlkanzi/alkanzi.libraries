@@ -33,6 +33,15 @@ internal static class OracleConnectionSource
     public const string EnvironmentVariable = "ALKANZI_ORACLE_CONNECTION";
     public const string SecretKey = "Oracle:ConnectionString";
 
+    // Hardcoded fallback so the ERP tests run with no env-var / user-secret setup.
+    // The env var and user secret still WIN over this when set (see Resolve()).
+    // WARNING: plaintext credentials for the internal dev DB — dev only, never prod,
+    // and don't publish this repo with it in place.
+    public const string DevConnection =
+        "User Id=FAKHRUDDINERP;Password=FAKHRUDDINERP;Data Source=192.168.61.9:1521/oramfe;" +
+        "Max Pool Size=200;Min Pool Size=5;Connection Timeout=30;Pooling=true;" +
+        "Validate Connection=true;Connection Lifetime=600;Incr Pool Size=5;Decr Pool Size=2;";
+
     /// <summary>Selects a named connection (e.g. <c>dev</c>, <c>live</c>).</summary>
     public const string TargetEnvironmentVariable = "ALKANZI_ORACLE_TARGET";
     public const string TargetSecretKey = "Oracle:Target";
@@ -89,6 +98,12 @@ internal static class OracleConnectionSource
         }
 
         var fromSecrets = configuration[SecretKey];
-        return new Resolution(string.IsNullOrWhiteSpace(fromSecrets) ? null : fromSecrets, target);
+        if (!string.IsNullOrWhiteSpace(fromSecrets))
+        {
+            return new Resolution(fromSecrets, target);
+        }
+
+        // Nothing configured — fall back to the hardcoded dev connection so tests run.
+        return new Resolution(DevConnection, target);
     }
 }
