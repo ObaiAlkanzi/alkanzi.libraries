@@ -69,25 +69,6 @@ dotnet build
 dotnet test
 ```
 
-## Running the ERP web app in Docker
-
-`apps/Alkanzi.Erp.Web` (Blazor Server) ships a Dockerfile and a root `docker-compose.yml`.
-
-```bash
-cp .env.example .env      # then fill in ERP_CONNECTION_STRING
-docker compose up --build
-```
-
-The app listens on <http://localhost:8080>.
-
-A few things worth knowing before you change any of it:
-
-- **The build context is the repo root**, not the app folder — the app has a `ProjectReference` into `src/Alkanzi.ErpServices`, so a context rooted at the app cannot see it. Build by hand with `docker build -f apps/Alkanzi.Erp.Web/Dockerfile -t alkanzi-erp-web:local .`; compose already does this for you.
-- **The connection string is never baked into the image.** It arrives as `ConnectionStrings__Erp`, read from `ERP_CONNECTION_STRING` in the git-ignored `.env`. Building needs no secret; only running does. Start it without one and the app stops immediately, naming the missing key.
-- **Not the `-alpine` runtime, and no invariant globalization.** Oracle's managed ADO.NET driver needs a real ICU and throws on a runtime without one.
-- **Data Protection keys live in a named volume.** Blazor Server signs antiforgery tokens and circuit state with them; drop the volume and every restart invalidates open pages until users hard-refresh.
-- **`/healthz` is liveness only** — it does not touch Oracle, so an ERP blip cannot cause Docker to restart an otherwise healthy web app. `docker compose ps` reports the state.
-
 ## Packing
 
 ```bash

@@ -1,20 +1,10 @@
 <Solution>
-  <Folder Name="/apps/">
-    <Project Path="apps/Alkanzi.Erp.Web/Alkanzi.Erp.Web.csproj" />
-    <Project Path="apps/Alkanzi.SearchEngine.Demo/Alkanzi.SearchEngine.Demo.csproj" />
-  </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Alkanzi.Api/Alkanzi.Api.csproj" />
-    <Project Path="src/Alkanzi.Application/Alkanzi.Application.csproj" />
     <Project Path="src/Alkanzi.ApprovalWorkflow/Alkanzi.ApprovalWorkflow.csproj" />
-    <Project Path="src/Alkanzi.DataAccess/Alkanzi.DataAccess.csproj" />
     <Project Path="src/Alkanzi.Auditable/Alkanzi.Auditable.csproj" />
     <Project Path="src/Alkanzi.Auditable.EntityFrameworkCore/Alkanzi.Auditable.EntityFrameworkCore.csproj" />
     <Project Path="src/Alkanzi.ErpServices/Alkanzi.ErpServices.csproj" />
     <Project Path="src/Alkanzi.SearchEngine/Alkanzi.SearchEngine.csproj" />
-  </Folder>
-  <Folder Name="/tools/">
-    <Project Path="tools/Alkanzi.DemoDataImporter/Alkanzi.DemoDataImporter.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Alkanzi.ApprovalWorkflow.Tests/Alkanzi.ApprovalWorkflow.Tests.csproj" />

@@ -107,7 +107,7 @@ workload — do not start here.
 5. **Tests** — `tests/Alkanzi.ErpServices.OracleTests/ErpSearchOracleTests.cs`,
    joined to the existing xUnit collection so it runs sequentially, skipping when
    no connection is configured, all writes rolled back.
-6. **UI** — global search box in `apps/Alkanzi.Erp.Web` (Blazor) with debounce +
+6. **UI** — global search box in the consuming host app with debounce +
    keyboard nav, deep-linking to the document.
 7. **Tier 2** — index-table DDL script, `ErpSearchIndexer` refresh service, a
    `CONTAINS`-based query path behind the same interface, behind a feature flag.
