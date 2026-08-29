@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: alkanzi-postgres
+    environment:
+      POSTGRES_DB: alkanzi_erp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      # Deterministic collation: the default depends on the host locale, which makes index
+      # ordering differ between a developer's machine and the server.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - alkanzi-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # The app migrates on startup, so "accepting connections" is the signal that matters.
+      test: ["CMD-SHELL", "pg_isready -U postgres -d alkanzi_erp"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  alkanzi-pgdata:
