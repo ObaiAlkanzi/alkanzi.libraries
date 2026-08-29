@@ -1,0 +1,82 @@
+@*
+    Application shell: the AngularJS host, the DevExtreme toolbar and the
+    navigation drawer. A page contributes only @RenderBody plus its own
+    controller script through the Scripts section.
+
+    Script order below is deliberate and must not be reordered:
+      jQuery      — DevExtreme depends on it
+      AngularJS   — must load BEFORE dx.all.js so DevExtreme can register
+                    its 'dx' Angular module
+      dx.all.js   — the widgets
+      app.js      — creates angular.module('app', ['dx'])
+      page script — registers its controller on that module
+*@
+@{
+    var pageTitle = ViewData["Title"] as string;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(string.IsNullOrEmpty(pageTitle) ? "Alkanzi ERP" : pageTitle + " — Alkanzi ERP")</title>
+    <link rel="icon" href="~/favicon.ico" type="image/x-icon" />
+
+    <link href="~/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+    @* DevExtreme themes. The dark one ships disabled; the toggle flips
+       `.disabled`, because DevExtreme hardcodes its colours per theme file
+       and cannot be re-themed with CSS variables alone. *@
+    <link href="~/css/devextreme/dx.common.css" rel="stylesheet" />
+    <link href="~/css/devextreme/dx.light.css" rel="stylesheet" />
+    <link id="dxDarkTheme" href="~/css/devextreme/dx.dark.css" rel="stylesheet" disabled />
+
+    <link href="~/font-awesome/css/all.min.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
+
+    <script>
+        // Runs before the body paints: without it, a dark-theme user gets a
+        // full white flash while AngularJS boots.
+        (function () {
+            try {
+                if ((localStorage.getItem('erp-theme') || 'light') === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    var d = document.getElementById('dxDarkTheme');
+                    if (d) d.disabled = false;
+                }
+            } catch (e) { }
+        })();
+    </script>
+
+    <script src="~/js/devextreme/jquery.js"></script>
+    <script src="~/angular.js/angular.min.js"></script>
+    <script src="~/js/devextreme/dx.all.js"></script>
+    <script src="~/js/devextreme/aspnet/dx.aspnet.data.js"></script>
+    <script src="~/js/app.js" asp-append-version="true"></script>
+</head>
+<body class="dx-viewport" ng-app="app" ng-controller="_layoutCtrl" ng-init="init()">
+
+    <div class="erp-shell">
+        <header class="erp-header">
+            <div dx-toolbar="mainToolbar"></div>
+        </header>
+
+        <div dx-drawer="mainDrawer" class="erp-drawer">
+            <div data-options="dxTemplate: { name: 'navigation-menu' }">
+                <div class="erp-menu">
+                    <div dx-tree-view="mainTree"></div>
+                </div>
+            </div>
+
+            <div class="erp-content" dx-scroll-view="{ direction: 'vertical', showScrollbar: 'onHover' }">
+                <main class="erp-page">
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+    </div>
+
+    @* Page controllers register on the module app.js created above. *@
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

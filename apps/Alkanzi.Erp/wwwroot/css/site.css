@@ -1,0 +1,231 @@
+/* ============================================================
+   Alkanzi ERP — shell styling.
+
+   Everything colour-bearing goes through a token so the dark theme
+   is a token swap rather than a second stylesheet of overrides.
+   Never write a literal colour below the :root blocks.
+   ============================================================ */
+
+:root {
+    --erp-bg: #f4f6fa;
+    --erp-surface: #ffffff;
+    --erp-inset: #f8fafc;
+    --erp-border: #e4e7ee;
+    --erp-text: #2d3344;
+    --erp-heading: #11142b;
+    --erp-muted: #68696d;
+    --erp-primary: #1976d2;
+    --erp-primary-2: #42a5f5;
+    --erp-on-primary: #ffffff;
+    --erp-header-bg: #17324d;
+    --erp-header-text: #ffffff;
+    --erp-menu-bg: #ffffff;
+    --erp-success: #1ea672;
+    --erp-success-tint: rgba(30, 166, 114, .12);
+    --erp-warn: #d97706;
+    --erp-warn-tint: rgba(217, 119, 6, .12);
+    --erp-danger: #dc2626;
+    --erp-danger-tint: rgba(220, 38, 38, .12);
+    --erp-elev-1: 0 1px 3px rgba(0, 0, 0, .12), 0 1px 2px rgba(0, 0, 0, .08);
+    --erp-r: 8px;
+    --erp-header-h: 52px;
+}
+
+:root[data-theme="dark"] {
+    --erp-bg: #12161d;
+    --erp-surface: #1a2029;
+    --erp-inset: #151a22;
+    --erp-border: #2a323e;
+    /* Not pure white — at body sizes on a near-black ground it halates. */
+    --erp-text: #eef1f7;
+    --erp-heading: #f4f6fa;
+    --erp-muted: #98a1b0;
+    /* The light blue falls to about 3:1 on a dark surface, so the ramp lifts. */
+    --erp-primary: #4d9fe8;
+    --erp-primary-2: #7bbcf3;
+    --erp-header-bg: #0f1720;
+    --erp-menu-bg: #1a2029;
+    /* Status inks lift and their washes go 12% → 22%: a tint that reads on
+       white all but disappears against a dark surface. */
+    --erp-success: #35c795;
+    --erp-success-tint: rgba(53, 199, 149, .22);
+    --erp-warn: #f0a13a;
+    --erp-warn-tint: rgba(240, 161, 58, .22);
+    --erp-danger: #f2665f;
+    --erp-danger-tint: rgba(242, 102, 95, .22);
+    --erp-elev-1: 0 1px 3px rgba(0, 0, 0, .5), 0 1px 2px rgba(0, 0, 0, .4);
+}
+
+html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--erp-bg);
+    color: var(--erp-text);
+    font-family: 'Segoe UI', system-ui, Roboto, Arial, sans-serif;
+}
+
+/* ---------- shell ---------- */
+.erp-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.erp-header {
+    flex: 0 0 auto;
+    background: var(--erp-header-bg);
+    box-shadow: var(--erp-elev-1);
+    z-index: 10;
+}
+
+.erp-toolbar {
+    background: transparent;
+    padding: 0 10px;
+    height: var(--erp-header-h);
+}
+
+/* The toolbar sits on the dark header band in both themes, so its own
+   foreground is fixed rather than following the theme. */
+.erp-toolbar .dx-toolbar-items-container,
+.erp-toolbar .dx-button-mode-text .dx-icon {
+    color: var(--erp-header-text);
+}
+
+.erp-brand {
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: .2px;
+    color: var(--erp-header-text);
+    margin-left: 6px;
+    white-space: nowrap;
+}
+
+.erp-icon-btn {
+    border: 0;
+    background: transparent;
+    color: var(--erp-header-text);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.erp-icon-btn:hover { background: rgba(255, 255, 255, .12); }
+
+.erp-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--erp-header-text);
+    padding: 0 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.erp-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .16);
+    display: grid;
+    place-items: center;
+}
+
+.erp-user-name { font-size: 13px; font-weight: 600; }
+
+/* ---------- drawer + menu ---------- */
+.erp-drawer {
+    flex: 1 1 auto;
+    min-height: 0;   /* lets the drawer's scroll view own the overflow */
+}
+
+.erp-menu {
+    width: 250px;
+    height: 100%;
+    background: var(--erp-menu-bg);
+    border-right: 1px solid var(--erp-border);
+    padding-top: 6px;
+}
+
+.erp-menu .dx-treeview-item { padding: 9px 12px; }
+.erp-menu .dx-treeview-item .dx-icon { color: var(--erp-muted); }
+.erp-menu .dx-treeview-node.dx-state-selected > .dx-treeview-item,
+.erp-menu .dx-treeview-item.dx-state-selected {
+    background: var(--erp-primary);
+    color: var(--erp-on-primary);
+}
+.erp-menu .dx-treeview-node.dx-state-selected > .dx-treeview-item .dx-icon { color: var(--erp-on-primary); }
+
+.erp-content { height: 100%; background: var(--erp-bg); }
+.erp-page { padding: 16px 20px 32px; }
+
+/* ---------- page furniture ---------- */
+.erp-page-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.erp-page-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--erp-heading);
+}
+
+.erp-page-sub { color: var(--erp-muted); font-size: 13px; }
+
+.erp-card {
+    background: var(--erp-surface);
+    border: 1px solid var(--erp-border);
+    border-radius: var(--erp-r);
+    box-shadow: var(--erp-elev-1);
+    padding: 14px 16px;
+}
+
+.erp-card + .erp-card { margin-top: 14px; }
+
+.erp-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--erp-heading);
+    margin-bottom: 10px;
+}
+
+.erp-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.erp-kpi {
+    background: var(--erp-surface);
+    border: 1px solid var(--erp-border);
+    border-left: 3px solid var(--erp-primary);
+    border-radius: var(--erp-r);
+    box-shadow: var(--erp-elev-1);
+    padding: 14px 16px;
+}
+
+.erp-kpi-value { font-size: 26px; font-weight: 700; color: var(--erp-heading); line-height: 1.1; }
+.erp-kpi-label { font-size: 13px; color: var(--erp-muted); margin-top: 2px; }
+
+/* ---------- status chips ---------- */
+.erp-chip {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.erp-chip--success { background: var(--erp-success-tint); color: var(--erp-success); }
+.erp-chip--warning { background: var(--erp-warn-tint); color: var(--erp-warn); }
+.erp-chip--danger { background: var(--erp-danger-tint); color: var(--erp-danger); }
+.erp-chip--muted { background: var(--erp-inset); color: var(--erp-muted); }

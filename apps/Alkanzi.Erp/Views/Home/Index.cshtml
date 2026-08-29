@@ -1,0 +1,42 @@
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div ng-controller="dashboardCtrl">
+
+    <div class="erp-page-head">
+        <div>
+            <h1 class="erp-page-title">Dashboard</h1>
+            <div class="erp-page-sub">Placeholder data — no database is wired up yet.</div>
+        </div>
+        <div dx-button="reloadBtn"></div>
+    </div>
+
+    <section class="erp-kpi-row">
+        <div class="erp-kpi" ng-repeat="k in kpis">
+            <div class="erp-kpi-value">{{ k.value | number }}</div>
+            <div class="erp-kpi-label">{{ k.label }}</div>
+        </div>
+    </section>
+
+    <section class="erp-card">
+        <div class="erp-card-head">
+            <i class="fa-solid fa-chart-column"></i>
+            <span>Value by Vendor</span>
+        </div>
+        <div dx-chart="vendorChart"></div>
+    </section>
+
+    <section class="erp-card">
+        <div class="erp-card-head">
+            <i class="fa-solid fa-cart-flatbed"></i>
+            <span>Recent Purchase Orders</span>
+        </div>
+        <div dx-data-grid="ordersGrid"></div>
+    </section>
+
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/dashboard.js" asp-append-version="true"></script>
+}

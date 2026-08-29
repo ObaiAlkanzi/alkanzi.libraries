@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/apps/">
+    <Project Path="apps/Alkanzi.Erp/Alkanzi.Erp.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Alkanzi.ApprovalWorkflow/Alkanzi.ApprovalWorkflow.csproj" />
     <Project Path="src/Alkanzi.Auditable/Alkanzi.Auditable.csproj" />
