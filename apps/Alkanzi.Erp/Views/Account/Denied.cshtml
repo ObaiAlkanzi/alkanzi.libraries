@@ -1,0 +1,15 @@
+@{
+    ViewData["Title"] = "Access denied";
+    Layout = "_LoginLayout";
+}
+
+<div class="erp-login-card">
+    <div class="erp-login-brand">
+        <span class="erp-login-logo"><i class="fa-solid fa-ban"></i></span>
+        <span>Access denied</span>
+    </div>
+    <p style="color: var(--erp-muted); margin: 0 0 18px;">
+        You are signed in, but this action needs a permission your security groups do not grant.
+    </p>
+    <a class="erp-btn-primary" style="text-align:center; text-decoration:none; display:block;" asp-controller="Home" asp-action="Index">Back to dashboard</a>
+</div>

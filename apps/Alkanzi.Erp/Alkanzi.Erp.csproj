@@ -18,6 +18,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Alkanzi.Auditable.EntityFrameworkCore\Alkanzi.Auditable.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\..\src\Alkanzi.Erp.Domain\Alkanzi.Erp.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Alkanzi.Erp.Application\Alkanzi.Erp.Application.csproj" />
+    <ProjectReference Include="..\..\src\Alkanzi.Erp.DataAccess\Alkanzi.Erp.DataAccess.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
-using Alkanzi.Erp.Data.Entities;
+
 using Microsoft.EntityFrameworkCore;
 
-namespace Alkanzi.Erp.Data;
+namespace Alkanzi.Erp.DataAccess.Search;
 
 public sealed record SearchHit(
     string EntityType,

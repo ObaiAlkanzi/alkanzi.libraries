@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Alkanzi.Auditable.EntityFrameworkCore;
 
-namespace Alkanzi.Erp.Data;
+namespace Alkanzi.Erp.Infrastructure;
 
 /// <summary>
 /// Supplies the acting user id to the audit interceptor from the current request.

@@ -3,6 +3,9 @@
     <Project Path="apps/Alkanzi.Erp/Alkanzi.Erp.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Alkanzi.Erp.Domain/Alkanzi.Erp.Domain.csproj" />
+    <Project Path="src/Alkanzi.Erp.Application/Alkanzi.Erp.Application.csproj" />
+    <Project Path="src/Alkanzi.Erp.DataAccess/Alkanzi.Erp.DataAccess.csproj" />
     <Project Path="src/Alkanzi.ApprovalWorkflow/Alkanzi.ApprovalWorkflow.csproj" />
     <Project Path="src/Alkanzi.Auditable/Alkanzi.Auditable.csproj" />
     <Project Path="src/Alkanzi.Auditable.EntityFrameworkCore/Alkanzi.Auditable.EntityFrameworkCore.csproj" />

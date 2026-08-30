@@ -1,0 +1,28 @@
+@*
+    Chrome-less layout for the sign-in and access-denied screens. Deliberately does not load
+    AngularJS or DevExtreme: nothing here needs them, and a login page should not wait on a
+    5MB widget bundle before it can accept a password.
+*@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Alkanzi ERP</title>
+    <link rel="icon" href="~/favicon.ico" type="image/x-icon" />
+    <link href="~/font-awesome/css/all.min.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
+    <script>
+        (function () {
+            try {
+                if ((localStorage.getItem('erp-theme') || 'light') === 'dark')
+                    document.documentElement.setAttribute('data-theme', 'dark');
+            } catch (e) { }
+        })();
+    </script>
+</head>
+<body class="erp-login-page">
+    @RenderBody()
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

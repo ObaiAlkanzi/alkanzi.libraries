@@ -1,7 +1,7 @@
-using Alkanzi.Erp.Data.Entities;
+using Alkanzi.Erp.Domain.Procurement;
 using Microsoft.EntityFrameworkCore;
 
-namespace Alkanzi.Erp.Data;
+namespace Alkanzi.Erp.DataAccess.Search;
 
 /// <summary>
 /// Projects source rows into <see cref="SearchDocument"/> rows.

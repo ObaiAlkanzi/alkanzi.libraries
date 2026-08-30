@@ -1,0 +1,39 @@
+@model LoginViewModel
+@{
+    ViewData["Title"] = "Sign in";
+    Layout = "_LoginLayout";
+}
+
+<form method="post" class="erp-login-card" asp-action="Login">
+    <input type="hidden" asp-for="ReturnUrl" />
+
+    <div class="erp-login-brand">
+        <span class="erp-login-logo"><i class="fa-solid fa-cubes"></i></span>
+        <span>Alkanzi ERP</span>
+    </div>
+
+    <div asp-validation-summary="ModelOnly" class="erp-login-error"></div>
+
+    <label class="erp-field">
+        <span>Email</span>
+        <input asp-for="Email" autocomplete="username" autofocus class="erp-input" />
+        <span asp-validation-for="Email" class="erp-field-error"></span>
+    </label>
+
+    <label class="erp-field">
+        <span>Password</span>
+        <input asp-for="Password" type="password" autocomplete="current-password" class="erp-input" />
+        <span asp-validation-for="Password" class="erp-field-error"></span>
+    </label>
+
+    <label class="erp-check">
+        <input asp-for="RememberMe" type="checkbox" />
+        <span>Keep me signed in</span>
+    </label>
+
+    <button type="submit" class="erp-btn-primary">Sign in</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

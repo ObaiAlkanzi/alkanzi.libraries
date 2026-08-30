@@ -1,12 +1,15 @@
 using System.Diagnostics;
-using Alkanzi.Erp.Data;
-using Alkanzi.Erp.Data.Entities;
+using Alkanzi.Erp.DataAccess;
+using Alkanzi.Erp.DataAccess.Search;
+using Alkanzi.Erp.Domain.Procurement;
 using Alkanzi.Erp.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Alkanzi.Erp.Controllers;
 
+[Authorize]
 public class HomeController : Controller
 {
     private readonly ErpDbContext _db;
@@ -107,6 +110,7 @@ public class HomeController : Controller
         return View();
     }
 
+    [AllowAnonymous]   // the error page must render even when the failure was the auth pipeline itself
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
         => View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
