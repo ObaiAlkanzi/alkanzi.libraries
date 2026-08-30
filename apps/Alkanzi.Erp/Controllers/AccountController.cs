@@ -16,6 +16,17 @@ public class AccountController : Controller
 
     public const string FullNameClaim = "erp:full_name";
 
+    /// <summary>
+    /// Role that lands on the IT workspace after signing in.
+    /// <para>
+    /// Spelled out here rather than shared from the data layer, which this project no longer
+    /// references. That is a deliberate duplication of a string, not of a rule: the API stays
+    /// the authority on what the role may actually do, and this only decides which page to
+    /// open first. If it ever drifts, the worst outcome is landing on the dashboard.
+    /// </para>
+    /// </summary>
+    private const string SuperAdminRole = "Super Admin";
+
     private readonly ApiAuthClient _api;
     private readonly ILogger<AccountController> _logger;
 
@@ -82,7 +93,7 @@ public class AccountController : Controller
                 ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30),
             });
 
-        return SafeRedirect(model.ReturnUrl);
+        return SafeRedirect(model.ReturnUrl, user.Roles);
     }
 
     /// <summary>
@@ -112,11 +123,27 @@ public class AccountController : Controller
     }
 
     /// <summary>
-    /// Only follows a local return URL. An absolute one would let a crafted link bounce a
+    /// Decides where a freshly signed-in user lands.
+    /// <para>
+    /// A return URL wins over the role's landing page. Someone who followed a link and was
+    /// bounced to sign in expects to arrive where they were going, and overriding that would
+    /// break every deep link into the app for administrators in particular.
+    /// </para>
+    /// <para>
+    /// Only a LOCAL return URL is followed. An absolute one would let a crafted link bounce a
     /// freshly signed-in user to another site — the classic open redirect.
+    /// </para>
     /// </summary>
-    private IActionResult SafeRedirect(string? returnUrl) =>
-        !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
-            ? Redirect(returnUrl)
-            : RedirectToAction("Index", "Home");
+    private IActionResult SafeRedirect(string? returnUrl, IEnumerable<string> roles)
+    {
+        if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            return Redirect(returnUrl);
+
+        // Case-insensitive: the role name travels as a string from the API, and a casing
+        // difference should not silently send an administrator to the wrong page.
+        if (roles.Contains(SuperAdminRole, StringComparer.OrdinalIgnoreCase))
+            return RedirectToAction("Workspace", "It");
+
+        return RedirectToAction("Index", "Home");
+    }
 }
