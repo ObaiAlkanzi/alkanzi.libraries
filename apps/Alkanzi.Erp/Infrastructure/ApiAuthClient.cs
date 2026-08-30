@@ -27,7 +27,7 @@ public sealed class ApiAuthClient
     }
 
     public sealed record AuthenticatedUser(
-        int Id, string FullName, string Email, int CompanyId, int OrganizationId, int? BranchId, string[] Roles);
+        int Id, string FullName, string Email, int CompanyId, int? BranchId, string[] Roles);
 
     public sealed record AuthResult(
         bool Succeeded, string? AccessToken, AuthenticatedUser? User, string? Error, bool Unreachable = false);

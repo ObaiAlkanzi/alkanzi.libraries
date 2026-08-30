@@ -24,10 +24,6 @@
         .GetRequiredService<IConfiguration>()["Api:BaseUrl"] ?? "http://localhost:5220";
     var apiToken = User.FindFirstValue(AccountController.ApiTokenClaim) ?? "";
     var fullName = User.FindFirstValue(AccountController.FullNameClaim) ?? User.Identity?.Name ?? "";
-    var organizationId = User.FindFirstValue(AccountController.OrganizationIdClaim) ?? "0";
-    var companyId = User.FindFirstValue(AccountController.CompanyIdClaim) ?? "0";
-    var branchId = User.FindFirstValue(AccountController.BranchIdClaim) ?? "0";
-    var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier) ?? "0";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -72,18 +68,12 @@
             fullName: @Html.Raw(Json.Serialize(fullName))
         };
 
-        // consts.js reads the ERP globals (_OrgId, _CompId, _BranchId, _UserId, _sgId) out of
-        // sessionStorage the moment it loads, and bails to all-zeros if OrganizationId is
-        // missing — so these have to be written BEFORE it runs, not after.
-        (function () {
-            try {
-                sessionStorage.setItem('OrganizationId', "@organizationId");
-                sessionStorage.setItem('UnitId', "@companyId");
-                sessionStorage.setItem('BranchId', "@branchId");
-                sessionStorage.setItem('UserId', "@userId");
-                sessionStorage.setItem('securityGroup', '0');   // groups were dropped in favour of roles
-            } catch (e) { }
-        })();
+        // Nothing seeds consts.js's sessionStorage keys, so its _OrgId / _CompId / _BranchId
+        // globals stay 0 — deliberately. Scope belongs to the bearer token, which the API
+        // reads for itself. Publishing the same ids to the client would only create a second,
+        // editable copy of them, and the temptation to send it back and have the server
+        // believe it. consts.js is loaded for what the framework classes actually need from
+        // it: alkanziColors, cellColors, request and defaultGrid.
     </script>
 
     <script src="~/js/devextreme/jquery.js"></script>

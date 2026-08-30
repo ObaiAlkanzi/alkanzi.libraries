@@ -14,9 +14,6 @@ public class AccountController : Controller
     /// <summary>Claim carrying the API bearer token issued alongside the sign-in cookie.</summary>
     public const string ApiTokenClaim = "erp:api_token";
 
-    public const string CompanyIdClaim = "erp:company_id";
-    public const string OrganizationIdClaim = "erp:organization_id";
-    public const string BranchIdClaim = "erp:branch_id";
     public const string FullNameClaim = "erp:full_name";
 
     private readonly ApiAuthClient _api;
@@ -59,9 +56,9 @@ public class AccountController : Controller
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(ClaimTypes.Name, user.Email),
             new(FullNameClaim, user.FullName),
-            new(CompanyIdClaim, user.CompanyId.ToString()),
-            new(OrganizationIdClaim, user.OrganizationId.ToString()),
-            new(BranchIdClaim, user.BranchId?.ToString() ?? ""),
+            // No company, branch or organization claim: the API reads scope from the bearer
+            // token it issued, so a copy here would be a second source of truth that a client
+            // could edit and a server might be tempted to trust.
         };
 
         // Roles come from the API rather than from a local store, so [Authorize(Roles = …)]
