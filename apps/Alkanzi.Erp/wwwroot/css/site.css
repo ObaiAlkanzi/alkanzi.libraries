@@ -559,3 +559,50 @@ button.erp-btn-primary.it-btn:hover:not(:disabled) { background: var(--erp-prima
 
 .it-editor { padding: 6px 4px; }
 .it-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ---------- user menu ---------- */
+.erp-user-pop { padding: 4px 2px; }
+
+.erp-user-pop-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px 12px;
+    border-bottom: 1px solid var(--erp-border);
+    margin-bottom: 6px;
+}
+
+.erp-user-pop-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--erp-primary);
+    color: var(--erp-on-primary);
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+
+.erp-user-pop-name { font-weight: 600; color: var(--erp-heading); }
+.erp-user-pop-sub { font-size: 12px; color: var(--erp-muted); }
+
+.erp-user-pop-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--erp-text);
+    padding: 9px 10px;
+    border-radius: 6px;
+    font-size: 13.5px;
+    cursor: pointer;
+    text-align: left;
+}
+
+.erp-user-pop-btn:hover { background: var(--erp-inset); }
+.erp-user-pop-btn--danger { color: var(--erp-danger); }
+.erp-user-pop-btn--danger:hover { background: var(--erp-danger-tint); }
+
+.d-none { display: none; }

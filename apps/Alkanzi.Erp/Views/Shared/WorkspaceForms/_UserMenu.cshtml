@@ -1,0 +1,24 @@
+@*
+    User menu, anchored to the toolbar's user chip. Bound to `userMenu`, which the layout
+    controller installs, so every workspace gets it without repeating the markup.
+*@
+<div dx-popover="userMenu.popover">
+    <div class="erp-user-pop">
+        <div class="erp-user-pop-top">
+            <span class="erp-user-pop-avatar"><i class="fa-solid fa-user"></i></span>
+            <div>
+                <div class="erp-user-pop-name">{{ userMenu.fullName }}</div>
+                <div class="erp-user-pop-sub">Signed in</div>
+            </div>
+        </div>
+
+        <button type="button" class="erp-user-pop-btn" ng-click="theme.toggle()">
+            <i class="fa-solid" ng-class="theme.current === 'dark' ? 'fa-sun' : 'fa-moon'"></i>
+            <span>{{ theme.current === 'dark' ? 'Light theme' : 'Dark theme' }}</span>
+        </button>
+
+        <button type="button" class="erp-user-pop-btn erp-user-pop-btn--danger" ng-click="userMenu.signOut()">
+            <i class="fa-solid fa-right-from-bracket"></i><span>Sign out</span>
+        </button>
+    </div>
+</div>

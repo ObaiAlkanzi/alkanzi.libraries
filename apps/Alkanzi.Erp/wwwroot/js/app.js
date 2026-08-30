@@ -159,6 +159,31 @@ app.controller("_layoutCtrl", ["$scope", "$http", "WsSearchTerminal", function (
         }
     };
 
+    // ---------- user menu ----------
+    // Anchored to the toolbar chip. Sign-out submits the shell's POST form rather than
+    // navigating: a GET logout can be triggered by any page that can make the browser fetch a
+    // URL, and the antiforgery token on that form is what prevents it.
+    $scope.userMenu = {
+        fullName: (window.__ERP__ && window.__ERP__.fullName) || "Signed in",
+        popover: {
+            target: "#erpUserBtn",
+            position: { my: "top right", at: "bottom right", of: "#erpUserBtn", offset: "0 8" },
+            width: 230,
+            height: "auto",
+            showTitle: false,
+            shading: false,
+            hideOnOutsideClick: true,
+            visible: false,
+            wrapperAttr: { class: "erp-user-pop-wrap" },
+            onInitialized: function (e) { $scope.userMenu.instance = e.component; }
+        },
+        show: function () { if ($scope.userMenu.instance) $scope.userMenu.instance.show(); },
+        signOut: function () {
+            var form = document.getElementById("logoutForm");
+            if (form) form.submit();
+        }
+    };
+
     // ---------- toolbar ----------
     $scope.mainToolbar = {
         elementAttr: { class: "erp-toolbar", id: "erpMainToolbar" },
@@ -196,9 +221,10 @@ app.controller("_layoutCtrl", ["$scope", "$http", "WsSearchTerminal", function (
             {
                 location: "after", locateInMenu: "never",
                 template: function () {
-                    var $u = $("<div>").addClass("erp-user").attr("id", "erpUserBtn");
+                    var $u = $("<div>").addClass("erp-user").attr({ id: "erpUserBtn", title: "Account" });
+                    $u.on("click", function () { $scope.userMenu.show(); });
                     $("<span>").addClass("erp-avatar").append($("<i>").addClass("fa-solid fa-user")).appendTo($u);
-                    $("<span>").addClass("erp-user-name").text($scope.userName || "Signed in").appendTo($u);
+                    $("<span>").addClass("erp-user-name").text($scope.userMenu.fullName).appendTo($u);
                     return $u;
                 }
             }

@@ -85,9 +85,19 @@ public class AccountController : Controller
         return SafeRedirect(model.ReturnUrl);
     }
 
+    /// <summary>
+    /// Signs the user out.
+    /// <para>
+    /// Deliberately anonymous. The [Authorize] that used to sit here did nothing — a
+    /// controller-level [AllowAnonymous] wins over an action-level [Authorize], which the
+    /// ASP0026 analyser flags — so it only looked protective. Requiring authentication to sign
+    /// out is also the wrong shape: a caller whose cookie has already expired would be refused
+    /// the very thing that clears it. The antiforgery token is what matters here, because it
+    /// is what stops another site logging the user out on their behalf.
+    /// </para>
+    /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);

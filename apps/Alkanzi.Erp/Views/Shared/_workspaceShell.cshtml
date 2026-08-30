@@ -117,6 +117,13 @@
 
     @* Shared chrome every workspace inherits. *@
     <partial name="WorkspaceForms/_SearchTerminal" />
+    <partial name="WorkspaceForms/_UserMenu" />
+
+    @* Sign-out is a POST with an antiforgery token, not a link: a GET logout can be triggered
+       by any page that can make the browser fetch a URL. The user menu submits this form. *@
+    <form id="logoutForm" method="post" asp-controller="Account" asp-action="Logout" class="d-none">
+        @Html.AntiForgeryToken()
+    </form>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>

@@ -8,9 +8,13 @@ namespace Alkanzi.Erp.Api.Controllers;
 
 public sealed record TokenRequest(string Email, string Password);
 
+/// <remarks>
+/// No blanket [AllowAnonymous] on the class: it silently overrides an action-level
+/// [Authorize] (ASP0026), which left /api/auth/me unauthenticated while looking protected.
+/// Anonymous access is granted per action instead.
+/// </remarks>
 [ApiController]
 [Route("api/auth")]
-[AllowAnonymous]
 public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _users;
@@ -32,6 +36,7 @@ public class AuthController : ControllerBase
 
     /// <summary>Exchanges credentials for an access token.</summary>
     [HttpPost("token")]
+    [AllowAnonymous]
     public async Task<IActionResult> Token([FromBody] TokenRequest request)
     {
         // One response for every failure mode — unknown user, wrong password, disabled
