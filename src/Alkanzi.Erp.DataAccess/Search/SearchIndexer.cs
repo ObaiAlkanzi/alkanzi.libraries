@@ -17,6 +17,7 @@ public static class SearchIndexer
     public static SearchDocument ToDocument(Vendor v) => new()
     {
         EntityType = "vendor",
+        CompanyId = v.CompanyId,
         Label = "Vendor",
         EntityId = v.Id,
         Title = v.Name,
@@ -28,6 +29,7 @@ public static class SearchIndexer
     public static SearchDocument ToDocument(PurchaseOrder p, string? vendorName) => new()
     {
         EntityType = "purchase_order",
+        CompanyId = p.CompanyId,
         Label = "Purchase Order",
         EntityId = p.Id,
         DocNum = p.DocNum,

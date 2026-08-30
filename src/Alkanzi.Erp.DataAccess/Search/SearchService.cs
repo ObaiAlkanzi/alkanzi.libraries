@@ -1,4 +1,5 @@
 
+using Alkanzi.Erp.Application.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Alkanzi.Erp.DataAccess.Search;
@@ -21,8 +22,13 @@ public sealed record SearchResult(int Total, IReadOnlyList<SearchHit> Hits);
 public sealed class SearchService
 {
     private readonly ErpDbContext _db;
+    private readonly ICurrentUser _currentUser;
 
-    public SearchService(ErpDbContext db) => _db = db;
+    public SearchService(ErpDbContext db, ICurrentUser currentUser)
+    {
+        _db = db;
+        _currentUser = currentUser;
+    }
 
     public async Task<SearchResult> SearchAsync(
         string? term, string? type, int skip = 0, int take = 20, CancellationToken ct = default)
@@ -44,7 +50,18 @@ public sealed class SearchService
 
         if (tsQuery.Length == 0) return new SearchResult(0, Array.Empty<SearchHit>());
 
+        // Tenant scoping, and it is not optional. The index is one table spanning every
+        // company, so without this filter a signed-in user searching "trading" would be
+        // served another company's vendors and purchase orders. Applied first so it also
+        // narrows the count below.
+        //
+        // An unauthenticated or company-less caller gets nothing rather than everything:
+        // failing closed is the only safe default when the scope cannot be established.
+        var companyId = _currentUser.CompanyId;
+        if (companyId <= 0) return new SearchResult(0, Array.Empty<SearchHit>());
+
         var q = _db.SearchDocuments.AsNoTracking()
+            .Where(d => d.CompanyId == companyId)
             .Where(d => d.SearchVector.Matches(EF.Functions.ToTsQuery("simple", tsQuery)));
 
         if (!string.IsNullOrWhiteSpace(type))

@@ -33,7 +33,12 @@ public static class DependencyInjection
             // PostgreSQL folds unquoted identifiers to lower case, so PascalCase names would
             // need quoting in every hand-written query. snake_case keeps the schema idiomatic.
             .UseSnakeCaseNamingConvention()
-            .AddInterceptors(sp.GetRequiredService<AuditableSaveChangesInterceptor>()));
+            // Two interceptors, and the order is intentional: the audit one rewrites deletes
+            // into soft deletes first, so the index interceptor sees IS_DELETED and drops the
+            // document rather than missing the removal.
+            .AddInterceptors(
+                sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
+                sp.GetRequiredService<SearchIndexInterceptor>()));
 
         services.AddIdentity<ApplicationUser, ApplicationRole>(o =>
         {
@@ -59,6 +64,9 @@ public static class DependencyInjection
         })
         .AddEntityFrameworkStores<ErpDbContext>()
         .AddDefaultTokenProviders();
+
+        // Singleton: it holds no per-request state, keying its in-flight work by context.
+        services.AddSingleton<SearchIndexInterceptor>();
 
         services.AddScoped<SearchService>();
 

@@ -56,6 +56,8 @@ public static class DevSeed
         db.PurchaseOrders.AddRange(orders);
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        await SearchIndexer.RebuildAsync(db, ct).ConfigureAwait(false);
+        // No explicit rebuild here any more: SearchIndexInterceptor indexes these rows as
+        // they are saved. RebuildAsync remains for the case it is actually for — repairing
+        // the index after a bulk import that bypassed EF.
     }
 }
