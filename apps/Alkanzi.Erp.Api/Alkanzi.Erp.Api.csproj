@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>b51e94f6-b8b8-4dbc-bbd4-4f7d3bed3784</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Alkanzi.Erp.Domain\Alkanzi.Erp.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Alkanzi.Erp.Application\Alkanzi.Erp.Application.csproj" />
+    <ProjectReference Include="..\..\src\Alkanzi.Erp.DataAccess\Alkanzi.Erp.DataAccess.csproj" />
+  </ItemGroup>
+
+</Project>

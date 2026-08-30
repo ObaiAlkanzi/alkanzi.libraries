@@ -23,6 +23,12 @@ builder.Services.AddErpDataAccess<HttpAuditUserProvider>(connectionString);
 // The web app supplies "who is acting" from the request cookie.
 builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 
+// This host authenticates with the Identity cookie. The data layer registers the stores and
+// managers but deliberately picks no scheme, so the API can choose bearer tokens instead.
+builder.Services
+    .AddAuthentication(IdentityConstants.ApplicationScheme)
+    .AddIdentityCookies();
+
 builder.Services.ConfigureApplicationCookie(o =>
 {
     o.Cookie.Name = "Alkanzi.Erp.Auth";

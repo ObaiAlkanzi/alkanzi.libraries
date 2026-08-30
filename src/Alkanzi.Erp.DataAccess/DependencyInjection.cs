@@ -40,7 +40,16 @@ public static class DependencyInjection
                 sp.GetRequiredService<AuditableSaveChangesInterceptor>(),
                 sp.GetRequiredService<SearchIndexInterceptor>()));
 
-        services.AddIdentity<ApplicationUser, ApplicationRole>(o =>
+        // AddIdentityCore, not AddIdentity. AddIdentity registers cookie handlers AND sets
+        // AuthenticationOptions.DefaultAuthenticateScheme to the Identity cookie — which is a
+        // decision about how requests are authenticated, and that belongs to the host, not to
+        // the data layer. It silently broke the API: [Authorize] resolved to the cookie
+        // handler, found no cookie, and returned 401 without ever inspecting the bearer token,
+        // even though AddAuthentication(JwtBearer) had been called afterwards.
+        //
+        // Core registers the stores and managers and touches no schemes. The MVC app adds
+        // AddIdentityCookies(); the API adds AddJwtBearer(). Each host picks its own.
+        services.AddIdentityCore<ApplicationUser>(o =>
         {
             o.User.RequireUniqueEmail = true;
             o.SignIn.RequireConfirmedAccount = false;
@@ -62,7 +71,9 @@ public static class DependencyInjection
             o.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             o.Lockout.MaxFailedAccessAttempts = 5;
         })
+        .AddRoles<ApplicationRole>()
         .AddEntityFrameworkStores<ErpDbContext>()
+        .AddSignInManager()
         .AddDefaultTokenProviders();
 
         // Singleton: it holds no per-request state, keying its in-flight work by context.

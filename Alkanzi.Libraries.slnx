@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/apps/">
     <Project Path="apps/Alkanzi.Erp/Alkanzi.Erp.csproj" />
+    <Project Path="apps/Alkanzi.Erp.Api/Alkanzi.Erp.Api.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Alkanzi.Erp.Domain/Alkanzi.Erp.Domain.csproj" />
