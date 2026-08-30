@@ -4,17 +4,47 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Alkanzi.Erp.DataAccess.Configurations;
 
+/*
+   Security-module tables carry the SM_ prefix, matching the existing ERP.
+
+   The names are written in lower case here — sm_companies, not SM_COMPANIES — because of how
+   PostgreSQL folds identifiers. An unquoted identifier folds to LOWER case, the opposite of
+   Oracle, so a table actually named SM_COMPANIES exists only as the quoted "SM_COMPANIES" and
+   every reference to it needs quotes forever: SELECT * FROM "SM_COMPANIES" works,
+   SELECT * FROM SM_COMPANIES does not.
+
+   Creating them lower case gets both: the table is sm_companies, and SELECT * FROM
+   SM_COMPANIES still resolves to it because the unquoted name folds down. Uppercase SQL
+   written out of Oracle habit keeps working.
+*/
+
+public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
+{
+    public void Configure(EntityTypeBuilder<Organization> e)
+    {
+        e.ToTable("sm_organizations");
+        e.Property(x => x.Code).HasMaxLength(20).IsRequired();
+        e.Property(x => x.Name).HasMaxLength(200).IsRequired();
+
+        e.HasIndex(x => x.Code).IsUnique().HasFilter("is_deleted IS NOT TRUE");
+    }
+}
+
 public class CompanyConfiguration : IEntityTypeConfiguration<Company>
 {
     public void Configure(EntityTypeBuilder<Company> e)
     {
-        e.ToTable("companies");
+        e.ToTable("sm_companies");
         e.Property(x => x.Code).HasMaxLength(20).IsRequired();
         e.Property(x => x.Name).HasMaxLength(200).IsRequired();
         e.Property(x => x.Currency).HasMaxLength(3).IsRequired();
 
-        // Unique among live rows only, so a deleted company does not reserve its code forever.
-        e.HasIndex(x => x.Code).IsUnique().HasFilter("is_deleted IS NOT TRUE");
+        e.HasOne(x => x.Organization).WithMany(o => o.Companies)
+         .HasForeignKey(x => x.OrganizationId).OnDelete(DeleteBehavior.Restrict);
+
+        // Scoped to the organization rather than global: two organizations may each run a
+        // company coded "ALK", and a soft-deleted one must not reserve the code forever.
+        e.HasIndex(x => new { x.OrganizationId, x.Code }).IsUnique().HasFilter("is_deleted IS NOT TRUE");
     }
 }
 
@@ -22,7 +52,7 @@ public class BranchConfiguration : IEntityTypeConfiguration<Branch>
 {
     public void Configure(EntityTypeBuilder<Branch> e)
     {
-        e.ToTable("branches");
+        e.ToTable("sm_branches");
         e.Property(x => x.Code).HasMaxLength(20).IsRequired();
         e.Property(x => x.Name).HasMaxLength(200).IsRequired();
 

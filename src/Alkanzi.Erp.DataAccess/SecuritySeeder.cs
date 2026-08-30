@@ -33,10 +33,25 @@ public static class SecuritySeeder
 
     private static async Task<Company> SeedCompanyAsync(ErpDbContext db, CancellationToken ct)
     {
+        // Organization first: a company cannot exist without one to belong to.
+        var organization = await db.Organizations.FirstOrDefaultAsync(ct).ConfigureAwait(false);
+        if (organization is null)
+        {
+            organization = new Organization { Code = "ALK", Name = "Alkanzi Group" };
+            db.Organizations.Add(organization);
+            await db.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+
         var company = await db.Companies.FirstOrDefaultAsync(ct).ConfigureAwait(false);
         if (company is null)
         {
-            company = new Company { Code = "ALK", Name = "Alkanzi Holdings", Currency = "AED" };
+            company = new Company
+            {
+                OrganizationId = organization.Id,
+                Code = "ALK",
+                Name = "Alkanzi Holdings",
+                Currency = "AED",
+            };
             db.Companies.Add(company);
             await db.SaveChangesAsync(ct).ConfigureAwait(false);
         }

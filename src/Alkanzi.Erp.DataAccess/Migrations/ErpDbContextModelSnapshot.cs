@@ -510,14 +510,14 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                         .HasColumnName("updated_by");
 
                     b.HasKey("Id")
-                        .HasName("pk_branches");
+                        .HasName("pk_sm_branches");
 
                     b.HasIndex("CompanyId", "Code")
                         .IsUnique()
-                        .HasDatabaseName("ix_branches_company_id_code")
+                        .HasDatabaseName("ix_sm_branches_company_id_code")
                         .HasFilter("is_deleted IS NOT TRUE");
 
-                    b.ToTable("branches", (string)null);
+                    b.ToTable("sm_branches", (string)null);
                 });
 
             modelBuilder.Entity("Alkanzi.Erp.Domain.Security.Company", b =>
@@ -575,6 +575,10 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("organization_id");
+
                     b.Property<DateTime?>("UPDATED_AT")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -584,14 +588,82 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                         .HasColumnName("updated_by");
 
                     b.HasKey("Id")
-                        .HasName("pk_companies");
+                        .HasName("pk_sm_companies");
+
+                    b.HasIndex("OrganizationId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("ix_sm_companies_organization_id_code")
+                        .HasFilter("is_deleted IS NOT TRUE");
+
+                    b.ToTable("sm_companies", (string)null);
+                });
+
+            modelBuilder.Entity("Alkanzi.Erp.Domain.Security.Organization", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CREATED_AT")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CREATED_BY")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime?>("DELETED_AT")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<int?>("DELETED_BY")
+                        .HasColumnType("integer")
+                        .HasColumnName("deleted_by");
+
+                    b.Property<bool?>("IS_DELETED")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<bool?>("IS_UPDATED")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_updated");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime?>("UPDATED_AT")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<int?>("UPDATED_BY")
+                        .HasColumnType("integer")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_sm_organizations");
 
                     b.HasIndex("Code")
                         .IsUnique()
-                        .HasDatabaseName("ix_companies_code")
+                        .HasDatabaseName("ix_sm_organizations_code")
                         .HasFilter("is_deleted IS NOT TRUE");
 
-                    b.ToTable("companies", (string)null);
+                    b.ToTable("sm_organizations", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -751,14 +823,14 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                         .WithMany()
                         .HasForeignKey("BranchId")
                         .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_users_branches_branch_id");
+                        .HasConstraintName("fk_users_sm_branches_branch_id");
 
                     b.HasOne("Alkanzi.Erp.Domain.Security.Company", "Company")
                         .WithMany()
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_users_companies_company_id");
+                        .HasConstraintName("fk_users_sm_companies_company_id");
 
                     b.Navigation("Branch");
 
@@ -772,9 +844,21 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                         .HasForeignKey("CompanyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_branches_companies_company_id");
+                        .HasConstraintName("fk_sm_branches_companies_company_id");
 
                     b.Navigation("Company");
+                });
+
+            modelBuilder.Entity("Alkanzi.Erp.Domain.Security.Company", b =>
+                {
+                    b.HasOne("Alkanzi.Erp.Domain.Security.Organization", "Organization")
+                        .WithMany("Companies")
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_sm_companies_organizations_organization_id");
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -842,6 +926,11 @@ namespace Alkanzi.Erp.DataAccess.Migrations
             modelBuilder.Entity("Alkanzi.Erp.Domain.Security.Company", b =>
                 {
                     b.Navigation("Branches");
+                });
+
+            modelBuilder.Entity("Alkanzi.Erp.Domain.Security.Organization", b =>
+                {
+                    b.Navigation("Companies");
                 });
 #pragma warning restore 612, 618
         }

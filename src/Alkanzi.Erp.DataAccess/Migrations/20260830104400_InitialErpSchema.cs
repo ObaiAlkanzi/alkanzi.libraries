@@ -14,30 +14,6 @@ namespace Alkanzi.Erp.DataAccess.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "companies",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
-                    is_active = table.Column<bool>(type: "boolean", nullable: false),
-                    is_updated = table.Column<bool>(type: "boolean", nullable: true),
-                    is_deleted = table.Column<bool>(type: "boolean", nullable: true),
-                    created_by = table.Column<int>(type: "integer", nullable: false),
-                    updated_by = table.Column<int>(type: "integer", nullable: true),
-                    deleted_by = table.Column<int>(type: "integer", nullable: true),
-                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_companies", x => x.id);
-                });
-
-            migrationBuilder.CreateTable(
                 name: "roles",
                 columns: table => new
                 {
@@ -78,6 +54,29 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "sm_organizations",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    is_active = table.Column<bool>(type: "boolean", nullable: false),
+                    is_updated = table.Column<bool>(type: "boolean", nullable: true),
+                    is_deleted = table.Column<bool>(type: "boolean", nullable: true),
+                    created_by = table.Column<int>(type: "integer", nullable: false),
+                    updated_by = table.Column<int>(type: "integer", nullable: true),
+                    deleted_by = table.Column<int>(type: "integer", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_sm_organizations", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "vendors",
                 columns: table => new
                 {
@@ -105,7 +104,59 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "branches",
+                name: "role_claims",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    role_id = table.Column<int>(type: "integer", nullable: false),
+                    claim_type = table.Column<string>(type: "text", nullable: true),
+                    claim_value = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_role_claims", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_role_claims_roles_role_id",
+                        column: x => x.role_id,
+                        principalTable: "roles",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "sm_companies",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    organization_id = table.Column<int>(type: "integer", nullable: false),
+                    code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    currency = table.Column<string>(type: "character varying(3)", maxLength: 3, nullable: false),
+                    is_active = table.Column<bool>(type: "boolean", nullable: false),
+                    is_updated = table.Column<bool>(type: "boolean", nullable: true),
+                    is_deleted = table.Column<bool>(type: "boolean", nullable: true),
+                    created_by = table.Column<int>(type: "integer", nullable: false),
+                    updated_by = table.Column<int>(type: "integer", nullable: true),
+                    deleted_by = table.Column<int>(type: "integer", nullable: true),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    deleted_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_sm_companies", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_sm_companies_organizations_organization_id",
+                        column: x => x.organization_id,
+                        principalTable: "sm_organizations",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "sm_branches",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
@@ -125,34 +176,13 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_branches", x => x.id);
+                    table.PrimaryKey("pk_sm_branches", x => x.id);
                     table.ForeignKey(
-                        name: "fk_branches_companies_company_id",
+                        name: "fk_sm_branches_companies_company_id",
                         column: x => x.company_id,
-                        principalTable: "companies",
+                        principalTable: "sm_companies",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "role_claims",
-                columns: table => new
-                {
-                    id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    role_id = table.Column<int>(type: "integer", nullable: false),
-                    claim_type = table.Column<string>(type: "text", nullable: true),
-                    claim_value = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("pk_role_claims", x => x.id);
-                    table.ForeignKey(
-                        name: "fk_role_claims_roles_role_id",
-                        column: x => x.role_id,
-                        principalTable: "roles",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -185,7 +215,7 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                     table.ForeignKey(
                         name: "fk_purchase_orders_branches_branch_id",
                         column: x => x.branch_id,
-                        principalTable: "branches",
+                        principalTable: "sm_branches",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
@@ -227,15 +257,15 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                 {
                     table.PrimaryKey("pk_users", x => x.id);
                     table.ForeignKey(
-                        name: "fk_users_branches_branch_id",
+                        name: "fk_users_sm_branches_branch_id",
                         column: x => x.branch_id,
-                        principalTable: "branches",
+                        principalTable: "sm_branches",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "fk_users_companies_company_id",
+                        name: "fk_users_sm_companies_company_id",
                         column: x => x.company_id,
-                        principalTable: "companies",
+                        principalTable: "sm_companies",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                 });
@@ -326,20 +356,6 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "ix_branches_company_id_code",
-                table: "branches",
-                columns: new[] { "company_id", "code" },
-                unique: true,
-                filter: "is_deleted IS NOT TRUE");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_companies_code",
-                table: "companies",
-                column: "code",
-                unique: true,
-                filter: "is_deleted IS NOT TRUE");
-
-            migrationBuilder.CreateIndex(
                 name: "ix_purchase_orders_branch_id",
                 table: "purchase_orders",
                 column: "branch_id");
@@ -388,6 +404,27 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                 table: "search_documents",
                 column: "search_vector")
                 .Annotation("Npgsql:IndexMethod", "GIN");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_sm_branches_company_id_code",
+                table: "sm_branches",
+                columns: new[] { "company_id", "code" },
+                unique: true,
+                filter: "is_deleted IS NOT TRUE");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_sm_companies_organization_id_code",
+                table: "sm_companies",
+                columns: new[] { "organization_id", "code" },
+                unique: true,
+                filter: "is_deleted IS NOT TRUE");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_sm_organizations_code",
+                table: "sm_organizations",
+                column: "code",
+                unique: true,
+                filter: "is_deleted IS NOT TRUE");
 
             migrationBuilder.CreateIndex(
                 name: "ix_user_claims_user_id",
@@ -467,10 +504,13 @@ namespace Alkanzi.Erp.DataAccess.Migrations
                 name: "users");
 
             migrationBuilder.DropTable(
-                name: "branches");
+                name: "sm_branches");
 
             migrationBuilder.DropTable(
-                name: "companies");
+                name: "sm_companies");
+
+            migrationBuilder.DropTable(
+                name: "sm_organizations");
         }
     }
 }

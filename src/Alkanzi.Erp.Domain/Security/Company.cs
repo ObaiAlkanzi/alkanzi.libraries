@@ -13,6 +13,10 @@ namespace Alkanzi.Erp.Domain.Security;
 /// </summary>
 public class Company : AuditableEntity
 {
+    /// <summary>Owning organization — the ERP's <c>ORG_ID</c>.</summary>
+    public int OrganizationId { get; set; }
+    public Organization? Organization { get; set; }
+
     public string Code { get; set; } = "";
     public string Name { get; set; } = "";
 

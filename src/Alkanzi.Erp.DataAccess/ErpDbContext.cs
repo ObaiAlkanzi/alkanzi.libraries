@@ -22,6 +22,7 @@ public class ErpDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public ErpDbContext(DbContextOptions<ErpDbContext> options) : base(options) { }
 
     // ---- security ----
+    public DbSet<Organization> Organizations => Set<Organization>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<Branch> Branches => Set<Branch>();
 
