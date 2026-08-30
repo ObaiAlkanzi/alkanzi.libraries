@@ -23,7 +23,11 @@
     var apiBaseUrl = Context.RequestServices
         .GetRequiredService<IConfiguration>()["Api:BaseUrl"] ?? "http://localhost:5220";
     var apiToken = User.FindFirstValue(AccountController.ApiTokenClaim) ?? "";
-    var fullName = User.FindFirstValue("erp:full_name") ?? User.Identity?.Name ?? "";
+    var fullName = User.FindFirstValue(AccountController.FullNameClaim) ?? User.Identity?.Name ?? "";
+    var organizationId = User.FindFirstValue(AccountController.OrganizationIdClaim) ?? "0";
+    var companyId = User.FindFirstValue(AccountController.CompanyIdClaim) ?? "0";
+    var branchId = User.FindFirstValue(AccountController.BranchIdClaim) ?? "0";
+    var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier) ?? "0";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -38,6 +42,14 @@
     <link href="~/css/devextreme/dx.light.css" rel="stylesheet" />
     <link id="dxDarkTheme" href="~/css/devextreme/dx.dark.css" rel="stylesheet" disabled />
     <link href="~/font-awesome/css/all.min.css" rel="stylesheet" />
+
+    @* The ERP's own stylesheets, copied from the existing system: asset-panel dresses the
+       workspace chrome and the search results, listPopup the kz-list-popup and
+       form-tab-panel-popup shells that alkanziFormPopup renders into. Loaded before site.css
+       so this app's own rules can still override them. *@
+    <link href="~/css/asset-panel.css" rel="stylesheet" asp-append-version="true" />
+    <link href="~/css/listPopup.css" rel="stylesheet" asp-append-version="true" />
+
     <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
 
     <script>
@@ -59,11 +71,32 @@
             token: "@Html.Raw(apiToken)",
             fullName: @Html.Raw(Json.Serialize(fullName))
         };
+
+        // consts.js reads the ERP globals (_OrgId, _CompId, _BranchId, _UserId, _sgId) out of
+        // sessionStorage the moment it loads, and bails to all-zeros if OrganizationId is
+        // missing — so these have to be written BEFORE it runs, not after.
+        (function () {
+            try {
+                sessionStorage.setItem('OrganizationId', "@organizationId");
+                sessionStorage.setItem('UnitId', "@companyId");
+                sessionStorage.setItem('BranchId', "@branchId");
+                sessionStorage.setItem('UserId', "@userId");
+                sessionStorage.setItem('securityGroup', '0');   // groups were dropped in favour of roles
+            } catch (e) { }
+        })();
     </script>
 
     <script src="~/js/devextreme/jquery.js"></script>
     <script src="~/angular.js/angular.min.js"></script>
     <script src="~/js/devextreme/dx.all.js"></script>
+
+    @* The ERP framework classes — listPopup, basicContainer and alkanziFormPopup live here,
+       and the workspaces build their popups from them rather than hand-rolling equivalents.
+       Must load before app.js, which uses them. *@
+    <script src="~/js/kanzi/consts.js" asp-append-version="true"></script>
+    <script src="~/js/kanzi/PublicFrame.js" asp-append-version="true"></script>
+    <script src="~/js/kanzi/helpers.js" asp-append-version="true"></script>
+
     <script src="~/js/app.js" asp-append-version="true"></script>
 
     @* Shared factories register on the module app.js just created. *@

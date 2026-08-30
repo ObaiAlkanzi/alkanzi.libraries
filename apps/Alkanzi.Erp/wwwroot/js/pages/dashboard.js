@@ -5,7 +5,7 @@
    create one. Calling angular.module('app', ['dx']) here would
    replace the module and drop the layout controller with it.
    ============================================================ */
-app.controller("dashboardCtrl", ["$scope", "$http", function ($scope, $http) {
+app.controller("dashboardCtrl", ["$scope", "erpApi", function ($scope, erpApi) {
     "use strict";
 
     $scope.kpis = [];
@@ -74,15 +74,12 @@ app.controller("dashboardCtrl", ["$scope", "$http", function ($scope, $http) {
     // ---------- data ----------
     $scope.load = function () {
         $scope.loading = true;
-        return $http.get("/Home/DashboardData")
-            .then(function (r) {
-                var d = r.data || {};
+        return erpApi.get("/api/dashboard")
+            .then(function (d) {
+                d = d || {};
                 $scope.kpis = d.kpis || [];
                 if ($scope.ordersGrid.instance) $scope.ordersGrid.instance.option("dataSource", d.orders || []);
                 if ($scope.vendorChart.instance) $scope.vendorChart.instance.option("dataSource", d.byVendor || []);
-            })
-            .catch(function () {
-                DevExpress.ui.notify("Could not load the dashboard.", "error", 3000);
             })
             .finally(function () { $scope.loading = false; });
     };

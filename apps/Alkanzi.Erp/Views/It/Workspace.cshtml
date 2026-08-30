@@ -77,14 +77,14 @@
     </section>
 </div>
 
-@* ---- add / edit dialog ---- *@
-<div dx-popup="editorPopup">
-    <div class="it-editor">
-        <div dx-form="editorForm"></div>
-        <div class="it-editor-actions">
-            <button type="button" class="it-btn" ng-click="editorPopup.instance.hide()" ng-disabled="busy">Cancel</button>
-            <button type="button" class="erp-btn-primary it-btn" ng-click="saveEditor()" ng-disabled="busy">Save</button>
-        </div>
+@* ---- add / edit dialog ----
+     Bound to the ERP's alkanziFormPopup: the class supplies the popup chrome, the title bar
+     and the Save button, so this is only the two bindings it expects. *@
+@* No class on this element: alkanziFormPopup applies form-tab-panel-popup to the overlay
+   wrapper itself, and repeating it here puts the same class on two different nodes. *@
+<div dx-popup="editorPopup.popup">
+    <div dx-scroll-view="{width:'100%',height:'100%',showScrollbar: 'always',}">
+        <div dx-form="editorPopup.form"></div>
     </div>
 </div>
 

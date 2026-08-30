@@ -1,9 +1,9 @@
 using System.Security.Claims;
-using Alkanzi.Erp.Domain.Security;
 using Alkanzi.Erp.Infrastructure;
 using Alkanzi.Erp.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Alkanzi.Erp.Controllers;
@@ -14,20 +14,17 @@ public class AccountController : Controller
     /// <summary>Claim carrying the API bearer token issued alongside the sign-in cookie.</summary>
     public const string ApiTokenClaim = "erp:api_token";
 
-    private readonly SignInManager<ApplicationUser> _signIn;
-    private readonly UserManager<ApplicationUser> _users;
-    private readonly ApiTokenClient _apiTokens;
+    public const string CompanyIdClaim = "erp:company_id";
+    public const string OrganizationIdClaim = "erp:organization_id";
+    public const string BranchIdClaim = "erp:branch_id";
+    public const string FullNameClaim = "erp:full_name";
+
+    private readonly ApiAuthClient _api;
     private readonly ILogger<AccountController> _logger;
 
-    public AccountController(
-        SignInManager<ApplicationUser> signIn,
-        UserManager<ApplicationUser> users,
-        ApiTokenClient apiTokens,
-        ILogger<AccountController> logger)
+    public AccountController(ApiAuthClient api, ILogger<AccountController> logger)
     {
-        _apiTokens = apiTokens;
-        _signIn = signIn;
-        _users = users;
+        _api = api;
         _logger = logger;
     }
 
@@ -45,62 +42,48 @@ public class AccountController : Controller
         ViewData["Title"] = "Sign in";
         if (!ModelState.IsValid) return View(model);
 
-        var user = await _users.FindByEmailAsync(model.Email);
+        // The API is the only thing that touches the database, so it is what verifies the
+        // password. This app turns its answer into a cookie.
+        var result = await _api.SignInAsync(model.Email, model.Password);
 
-        // One message for "no such user" and for "wrong password", on purpose: distinguishing
-        // them tells an attacker which addresses are real accounts.
-        const string failed = "Incorrect email or password.";
-
-        if (user is null)
+        if (!result.Succeeded || result.User is null)
         {
-            ModelState.AddModelError(string.Empty, failed);
+            ModelState.AddModelError(string.Empty, result.Error ?? "Sign-in failed.");
             return View(model);
         }
 
-        if (!user.IsActive)
-        {
-            ModelState.AddModelError(string.Empty, "This account has been disabled.");
-            return View(model);
-        }
-
-        var result = await _signIn.PasswordSignInAsync(user, model.Password, model.RememberMe, lockoutOnFailure: true);
-
-        if (result.IsLockedOut)
-        {
-            _logger.LogWarning("Login blocked: {Email} is locked out.", model.Email);
-            ModelState.AddModelError(string.Empty, "Too many failed attempts. Try again later.");
-            return View(model);
-        }
-
-        if (!result.Succeeded)
-        {
-            ModelState.AddModelError(string.Empty, failed);
-            return View(model);
-        }
-
-        // Company and branch are stamped into the cookie so ICurrentUser can answer without a
-        // query on every request. They change rarely; a user moved between companies has to
-        // sign in again for it to take effect.
-        // Exchange the same credentials for an API token while they are still in hand — this
-        // is the only moment the password exists in memory, and the front end needs a bearer
-        // token to call the API directly.
-        var apiToken = await _apiTokens.RequestTokenAsync(model.Email, model.Password);
+        var user = result.User;
 
         var claims = new List<Claim>
         {
-            new(HttpCurrentUser.CompanyIdClaim, user.CompanyId.ToString()),
-            new(HttpCurrentUser.BranchIdClaim, user.BranchId?.ToString() ?? ""),
-            new("erp:full_name", user.FullName),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.Email),
+            new(FullNameClaim, user.FullName),
+            new(CompanyIdClaim, user.CompanyId.ToString()),
+            new(OrganizationIdClaim, user.OrganizationId.ToString()),
+            new(BranchIdClaim, user.BranchId?.ToString() ?? ""),
         };
 
-        // Carried in the auth cookie, which is HttpOnly, so the token is not readable by
-        // script until the shell deliberately renders it for the API client.
-        if (apiToken is not null) claims.Add(new Claim(ApiTokenClaim, apiToken));
+        // Roles come from the API rather than from a local store, so [Authorize(Roles = …)]
+        // here and on the API agree by construction.
+        claims.AddRange(user.Roles.Select(r => new Claim(ClaimTypes.Role, r)));
 
-        await _signIn.SignInWithClaimsAsync(user, model.RememberMe, claims);
+        // The bearer token rides in the cookie, which is HttpOnly. The workspace shell is the
+        // one place that renders it for the front end, which calls the API directly.
+        if (result.AccessToken is not null) claims.Add(new Claim(ApiTokenClaim, result.AccessToken));
 
-        user.LastLoginAtUtc = DateTime.UtcNow;
-        await _users.UpdateAsync(user);
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity),
+            new AuthenticationProperties
+            {
+                IsPersistent = model.RememberMe,
+                // Capped to the token's own life. A cookie outliving its bearer token leaves
+                // the app looking signed in while every API call returns 401.
+                ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30),
+            });
 
         return SafeRedirect(model.ReturnUrl);
     }
@@ -110,7 +93,7 @@ public class AccountController : Controller
     [Authorize]
     public async Task<IActionResult> Logout()
     {
-        await _signIn.SignOutAsync();
+        await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
         return RedirectToAction(nameof(Login));
     }
 
@@ -122,8 +105,8 @@ public class AccountController : Controller
     }
 
     /// <summary>
-    /// Only follows a return URL that is local. An absolute URL here would let a crafted link
-    /// bounce a freshly signed-in user to another site — the classic open-redirect.
+    /// Only follows a local return URL. An absolute one would let a crafted link bounce a
+    /// freshly signed-in user to another site — the classic open redirect.
     /// </summary>
     private IActionResult SafeRedirect(string? returnUrl) =>
         !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)

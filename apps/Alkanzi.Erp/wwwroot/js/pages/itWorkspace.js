@@ -118,29 +118,26 @@ app.controller("itWorkspaceCtrl", ["$scope", "erpApi", function ($scope, erpApi)
     };
 
     // ---------- editor ----------
-    $scope.editor = { visible: false, mode: "add", level: "organization", parentId: null, data: {}, title: "" };
+    // Built from the ERP's own alkanziFormPopup rather than a hand-rolled dxPopup + dxForm, so
+    // this dialog is the same shell — and the same form-tab-panel-popup styling from
+    // listPopup.css — as every other form in the system. The class owns the popup chrome, the
+    // Save button and set(title, data); this controller supplies the fields and the handler.
+    $scope.editor = { mode: "add", level: "organization", parentId: null, title: "" };
 
-    $scope.editorPopup = {
-        width: 460,
-        height: "auto",
-        showTitle: true,
-        title: "Edit",
-        shading: true,
-        shadingColor: "var(--erp-shading)",
-        hideOnOutsideClick: false,
-        deferRendering: false,
-        visible: false,
-        onInitialized: function (e) { $scope.editorPopup.instance = e.component; }
-    };
-
-    $scope.editorForm = {
-        formData: {},
+    $scope.editorPopup = new alkanziFormPopup({
         colCount: 1,
-        labelMode: "floating",
-        showValidationSummary: false,
-        onInitialized: function (e) { $scope.editorForm.instance = e.component; },
-        items: []
-    };
+        showSubmit: true,
+        saveBtnText: "Save",
+        // Ties the dialog's title bar to the level being edited, the way the ERP pairs a
+        // form's colour with the list it was opened from.
+        toolbarColor: "primaryPopup"
+    });
+
+    $scope.editorPopup.popup.width = 460;
+    $scope.editorPopup.popup.height = "auto";
+
+    // The class exposes `submit` as an assignable hook rather than a callback in its config.
+    $scope.editorPopup.submit = function () { $scope.saveEditor(); };
 
     function itemsFor(level) {
         var base = [
@@ -160,10 +157,8 @@ app.controller("itWorkspaceCtrl", ["$scope", "erpApi", function ($scope, erpApi)
         $scope.editor.mode = "add";
         $scope.editor.level = level;
         $scope.editor.parentId = parentNode ? parentNode.entityId : null;
-        $scope.editor.data = cfg.blank(parentNode ? parentNode.entityId : null);
-        $scope.editor.title = "New " + cfg.label +
-            (parentNode ? " in " + parentNode.row.name : "");
-        openEditor();
+        $scope.editor.title = "New " + cfg.label + (parentNode ? " in " + parentNode.row.name : "");
+        openEditor(cfg.blank(parentNode ? parentNode.entityId : null));
     };
 
     $scope.edit = function (node) {
@@ -172,29 +167,50 @@ app.controller("itWorkspaceCtrl", ["$scope", "erpApi", function ($scope, erpApi)
         $scope.editor.mode = "edit";
         $scope.editor.level = node.level;
         $scope.editor.parentId = node.row[cfg.parentKey] || null;
-        $scope.editor.data = angular.copy(node.row);
         $scope.editor.title = "Edit " + cfg.label + " — " + node.row.name;
-        openEditor();
+        openEditor(angular.copy(node.row));
     };
 
-    function openEditor() {
-        $scope.editorForm.items = itemsFor($scope.editor.level);
-        if ($scope.editorForm.instance) {
-            $scope.editorForm.instance.option("items", $scope.editorForm.items);
-            $scope.editorForm.instance.option("formData", $scope.editor.data);
+    function openEditor(data) {
+        var popup = $scope.editorPopup;
+        var items = itemsFor($scope.editor.level);
+
+        // The dxForm inside the popup does not exist until the popup has rendered once, and
+        // the class's set() goes straight to formInit.option(...) — so calling set() on a
+        // never-opened dialog throws. Seed the config, open, then apply once the widget is up.
+        popup.form.items = items;
+
+        if (!popup.formInit) {
+            popup.popupTitle($scope.editor.title);
+            popup.showPopup();
+            whenFormReady(function () {
+                popup.formInit.option("items", items);
+                popup.formInit.option("formData", data);
+            });
+            return;
         }
-        if ($scope.editorPopup.instance) {
-            $scope.editorPopup.instance.option("title", $scope.editor.title);
-            $scope.editorPopup.instance.show();
-        }
+
+        popup.formInit.option("items", items);
+        popup.set($scope.editor.title, data);   // assigns formData, sets the title and shows
+    }
+
+    /// Waits for the popup's form widget to come up. Bounded, so a dialog that never renders
+    /// fails quietly rather than spinning.
+    function whenFormReady(done) {
+        var tries = 0;
+        (function probe() {
+            if ($scope.editorPopup.formInit) { done(); return; }
+            if (++tries > 40) return;
+            setTimeout(probe, 25);
+        })();
     }
 
     $scope.saveEditor = function () {
-        var form = $scope.editorForm.instance;
+        var form = $scope.editorPopup.formInit;
         if (form && !form.validate().isValid) return;
 
         var cfg = LEVELS[$scope.editor.level];
-        var data = form ? form.option("formData") : $scope.editor.data;
+        var data = form ? form.option("formData") : {};
 
         // Re-attach the parent key: the form does not show it, and an edit must not silently
         // reparent the row.
@@ -209,7 +225,7 @@ app.controller("itWorkspaceCtrl", ["$scope", "erpApi", function ($scope, erpApi)
         request
             .then(function () {
                 DevExpress.ui.notify(cfg.label + " saved.", "success", 2500);
-                if ($scope.editorPopup.instance) $scope.editorPopup.instance.hide();
+                $scope.editorPopup.hidePopup();
                 $scope.selected = null;
                 $scope.refresh();
             })

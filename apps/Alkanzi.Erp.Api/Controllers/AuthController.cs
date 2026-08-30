@@ -1,4 +1,6 @@
 using Alkanzi.Erp.Api.Infrastructure;
+using Alkanzi.Erp.DataAccess;
+using Microsoft.EntityFrameworkCore;
 using Alkanzi.Erp.Domain.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -15,6 +17,7 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _users;
     private readonly SignInManager<ApplicationUser> _signIn;
+    private readonly ErpDbContext _db;
     private readonly TokenService _tokens;
     private readonly ILogger<AuthController> _logger;
 
@@ -22,8 +25,10 @@ public class AuthController : ControllerBase
         UserManager<ApplicationUser> users,
         SignInManager<ApplicationUser> signIn,
         TokenService tokens,
+        ErpDbContext db,
         ILogger<AuthController> logger)
     {
+        _db = db;
         _users = users;
         _signIn = signIn;
         _tokens = tokens;
@@ -55,6 +60,13 @@ public class AuthController : ControllerBase
         if (!result.Succeeded) return denied;
 
         var roles = await _users.GetRolesAsync(user);
+        // The ERP front-end globals are scoped by organization as well as company, and the
+        // organization is reached through the company rather than stored on the user.
+        var organizationId = await _db.Companies
+            .Where(c => c.Id == user.CompanyId)
+            .Select(c => c.OrganizationId)
+            .FirstOrDefaultAsync();
+
         var (token, expiresAt) = _tokens.CreateAccessToken(user, roles);
 
         user.LastLoginAtUtc = DateTime.UtcNow;
@@ -71,6 +83,7 @@ public class AuthController : ControllerBase
                 fullName = user.FullName,
                 email = user.Email,
                 companyId = user.CompanyId,
+                organizationId,
                 branchId = user.BranchId,
                 roles,
             }

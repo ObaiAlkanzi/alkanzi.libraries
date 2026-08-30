@@ -1,0 +1,433 @@
+﻿/* ============================================================================
+   listPopup.css — shared styles for the reusable listPopup pattern
+   (a dxPopup hosting a dxList with carded, animated rows).
+
+   Loaded globally via _AdminlteMainHeader so any module can use the listPopup
+   classes without linking a feature stylesheet. Self-contained: carries its own
+   design tokens. The asset module keeps its own copy in asset-panel.css.
+
+   Class vocabulary:
+     .asset-picker-body   popup body wrapper (flex column, fills + scrolls)
+     .asset-picker-list   styled search bar on the list
+     .shortlist-row       one carded row (title + sub + right slot)
+     .shortlist-list      / .ap-activity-dx  carded-row variants (entrance anim)
+     .ap-activity-avatar  round icon on the left of a row
+     .ap-chip             status chip; .ap-wa-badge  count badge
+   ============================================================================ */
+
+/* ---- Design tokens (delete this block if the app already defines them) ---- */
+:root {
+    --ap-bg:       #f4f6fa;
+    --ap-surface:  #ffffff;
+    --ap-border:   #e4e7ee;
+    --ap-text:     #2d3344;
+    --ap-heading:  #6b6969;
+    --ap-muted:    #68696d;
+    --ap-info:        #2563eb;  --ap-info-tint:    #f9e490;
+    --ap-success:     #1ea672;  --ap-success-tint: rgba(30,166,114,.12);
+    --ap-warn:        #d97706;  --ap-warn-tint:    rgba(217,119,6,.12);
+    --ap-danger:      #dc2626;  --ap-danger-tint:  rgba(220,38,38,.12);
+    --ap-r:    6px;
+    --ap-r-lg: 7px;
+}
+
+/* ============ Popup body wrapper: makes the list fill & scroll ============ */
+.asset-picker-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--ap-bg, #f8fafc);
+}
+.asset-picker-body > [dx-list],
+.asset-picker-body .dx-list { flex: 1; min-height: 0; }
+.asset-picker-list .dx-list-search {
+    padding: 8px 12px;
+    background: var(--ap-surface, #fff);
+    border-bottom: 1px solid var(--ap-border);
+}
+
+/* ============ Row entrance animation (shared) ============ */
+@keyframes ap-activity-item-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ap-activity-avatar-pop {
+    0%   { transform: scale(0.6);  opacity: 0; }
+    60%  { transform: scale(1.08); opacity: 1; }
+    100% { transform: scale(1);    opacity: 1; }
+}
+
+/* ============ Shortlist row (the reusable row template) ============ */
+.shortlist-row {
+    outline: none;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    background: var(--ap-surface, #ffffff);
+    z-index: 1;
+    transition: ease-in-out 0.4s;
+}
+    .shortlist-row:before {
+        transition: 0.5s all ease;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        right: 50%;
+        bottom: 0;
+        opacity: 0;
+        content: "";
+        background-color: rgb(246, 242, 80, 0.20) !important;
+    }
+.shortlist-row:hover:before { transition: 0.5s all ease; left: 0; right: 0; opacity: 1; z-index: -1; }
+.shortlist-info  { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.shortlist-title {
+    font-weight: 700; color: var(--ap-heading, #0f172a); font-size: 13px; line-height: 2.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.shortlist-sub {
+    font-size: 12px; color: var(--ap-muted, #68696d); line-height: 1.2;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.shortlist-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+
+/* ============ Variant A: carded animated list — add class "ap-activity-dx" ============ */
+.ap-activity-dx.dx-list { border: 0; padding: 0; }
+.ap-activity-dx .dx-list-item {
+    box-sizing: border-box;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    overflow: hidden;
+    margin-top: 7px;
+    padding: 0 !important;
+    animation: ap-activity-item-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    transition: background-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+.ap-activity-dx .dx-list-item-content { padding: 0 !important; }
+.ap-activity-dx .dx-list-item:nth-child(1) { animation-delay: 0ms; }
+.ap-activity-dx .dx-list-item:nth-child(2) { animation-delay: 60ms; }
+.ap-activity-dx .dx-list-item:nth-child(3) { animation-delay: 120ms; }
+.ap-activity-dx .dx-list-item:nth-child(4) { animation-delay: 180ms; }
+.ap-activity-dx .dx-list-item:nth-child(5) { animation-delay: 240ms; }
+.ap-activity-dx .dx-list-item:nth-child(6) { animation-delay: 300ms; }
+.ap-activity-dx .dx-list-item:nth-child(7) { animation-delay: 360ms; }
+.ap-activity-dx .dx-list-item:nth-child(8) { animation-delay: 420ms; }
+.ap-activity-dx .dx-list-item:nth-child(n+9) { animation-delay: 480ms; }
+
+/* ============ Variant B: carded animated list — add class "shortlist-list" ============ */
+.shortlist-list.dx-list { border: 0; padding: 0; }
+.shortlist-list .dx-list-item-content { padding: 0; }
+.shortlist-list .dx-list-item {
+    box-sizing: border-box;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    overflow: hidden;
+    animation: ap-activity-item-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    margin-top: 4px;
+}
+.shortlist-list .shortlist-row,
+.ap-activity-dx .shortlist-row { left: 0; }
+.shortlist-list .dx-list-item:nth-child(1) { animation-delay: 0ms; }
+.shortlist-list .dx-list-item:nth-child(2) { animation-delay: 60ms; }
+.shortlist-list .dx-list-item:nth-child(3) { animation-delay: 120ms; }
+.shortlist-list .dx-list-item:nth-child(4) { animation-delay: 180ms; }
+.shortlist-list .dx-list-item:nth-child(5) { animation-delay: 240ms; }
+.shortlist-list .dx-list-item:nth-child(6) { animation-delay: 300ms; }
+.shortlist-list .dx-list-item:nth-child(7) { animation-delay: 360ms; }
+.shortlist-list .dx-list-item:nth-child(8) { animation-delay: 420ms; }
+.shortlist-list .dx-list-item:nth-child(n+9) { animation-delay: 480ms; }
+
+/* ============ Optional: avatar / icon circle on the left of a row ============ */
+.ap-activity-avatar {
+    flex: 0 0 36px; width: 36px; height: 36px;
+    border-radius: 20%; overflow: hidden;
+    background: var(--ap-info-tint); color: var(--ap-info);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    animation: ap-activity-avatar-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: 120ms;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.ap-activity-avatar--transfer { background: var(--ap-info-tint);      color: var(--ap-info); }
+.ap-activity-avatar--allocate { background: var(--ap-warn-tint);      color: var(--ap-warn); }
+.ap-activity-avatar--grn      { background: rgba(30,166,114,0.14);    color: #1ea672; }
+.ap-activity-avatar--purchase { background: rgba(239,97,11,0.70);     color: #fff; }
+.dx-list-item.dx-state-hover .ap-activity-avatar { transform: scale(1.06); }
+
+/* ============ Optional: status chip (floated right in a row) ============ */
+.ap-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 3px 10px; font-size: 11px; font-weight: 600;
+    border-radius: 99px; line-height: 1.2;
+}
+.ap-chip--ok      { background: var(--ap-success-tint); color: var(--ap-success); }
+.ap-chip--warn    { background: var(--ap-warn-tint);    color: var(--ap-warn); }
+.ap-chip--danger  { background: var(--ap-danger-tint);  color: var(--ap-danger); }
+.ap-chip--info    { background: var(--ap-info-tint);    color: var(--ap-info); }
+.ap-chip--neutral { background: var(--ap-bg);           color: var(--ap-muted); border: 1px solid var(--ap-border); }
+
+/* ============ Optional: WhatsApp-style count badge (far right of a row) ============ */
+.ap-wa-badge {
+    flex-shrink: 0; align-self: center; margin-left: auto;
+    min-width: 22px; height: 22px; padding: 0 7px;
+    border-radius: 999px; background: #25d366; color: #fff;
+    font-size: 11px; font-weight: 700; line-height: 22px; text-align: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+}
+
+/* ============ Accordion — carded look matching the listPopup rows ============ */
+.ap-accordion.dx-accordion { border: 0; background: transparent; }
+.ap-accordion .dx-accordion-item {
+    box-sizing: border-box;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    overflow: hidden;
+    margin-top: 8px;
+    animation: ap-activity-item-in 360ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    transition: box-shadow 180ms ease;
+}
+.ap-accordion .dx-accordion-item:first-child { margin-top: 0; }
+.ap-accordion .dx-accordion-item.dx-state-hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+.ap-accordion .dx-accordion-item-title {
+    padding: 12px 14px;
+    font-weight: 700;
+    color: var(--ap-heading);
+    font-size: 13px;
+    background: var(--ap-surface);
+}
+.ap-accordion .dx-accordion-item-opened > .dx-accordion-item-title {
+    background: var(--ap-bg);
+    border-bottom: 1px solid var(--ap-border);
+}
+.ap-accordion .dx-accordion-item-body { padding: 12px 14px; background: var(--ap-surface); }
+/* Sub-headers above the Materials / Manpowers grids inside a card. */
+.ap-accordion .call-view-sub-h {
+    font-weight: 600; font-size: 12px; color: var(--ap-muted);
+    text-transform: uppercase; letter-spacing: .04em; margin: 2px 0 6px;
+}
+.ap-accordion .dx-accordion-item:nth-child(1) { animation-delay: 0ms; }
+.ap-accordion .dx-accordion-item:nth-child(2) { animation-delay: 60ms; }
+.ap-accordion .dx-accordion-item:nth-child(3) { animation-delay: 120ms; }
+.ap-accordion .dx-accordion-item:nth-child(4) { animation-delay: 180ms; }
+.ap-accordion .dx-accordion-item:nth-child(5) { animation-delay: 240ms; }
+.ap-accordion .dx-accordion-item:nth-child(n+6) { animation-delay: 300ms; }
+
+/* ============ Tree styled as listPopup cards (keeps hierarchy) ============ */
+.ap-tree-cards.dx-treeview { border: 0; background: transparent; }
+.ap-tree-cards .dx-treeview-item {
+    box-sizing: border-box;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    margin-top: 6px;
+    padding: 0;
+    overflow: hidden;
+    animation: ap-activity-item-in 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    transition: box-shadow 180ms ease, background-color 180ms ease;
+}
+.ap-tree-cards .dx-treeview-item-content { display: flex; width: 100%; }
+/* Left gutter reserves room for the expand/collapse arrow so it never overlaps
+   the avatar (leaf rows keep the gutter too, so siblings stay aligned). */
+.ap-tree-cards .dx-treeview-item .shortlist-row { padding: 8px 10px 8px 28px; background: transparent; }
+.ap-tree-cards .dx-treeview-item .shortlist-row:before { content: none; }
+/* Arrow: span the card height (offset past its margin-top) and center the glyph
+   so it lines up with the card instead of floating at the top-left. */
+.ap-tree-cards .dx-treeview-toggle-item-visibility {
+    top: 6px;
+    bottom: 0;
+    height: auto;
+    width: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+.ap-tree-cards .dx-treeview-item.dx-state-hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); }
+.ap-tree-cards .dx-treeview-node.dx-state-selected > .dx-treeview-item,
+.ap-tree-cards .dx-treeview-item.dx-state-selected {
+    background: #eff6ff;
+    border-color: #2563eb;
+}
+.ap-tree-cards .dx-treeview-item.dx-state-selected .shortlist-title { color: #1e3a8a; }
+
+/* ============================================================================
+   Popup chrome — class "kz-list-popup"
+   Set on every listPopup by the listPopup class (PublicFrame.js), so this
+   section styles ALL listPopup instances app-wide.
+
+   The class arrives via `popup.wrapperAttr`, NOT elementAttr: Popup renders into
+   an overlay on <body>, so elementAttr only tags the original hidden element
+   (DevExtreme deprecated it for overlays in 21.2). .kz-list-popup therefore sits
+   on .dx-overlay-wrapper, and everything below is a descendant of it. Two class
+   levels also out-specify the DevExtreme defaults without !important.
+   ============================================================================ */
+
+/* ---- Shell: rounded card with a soft shadow ---- */
+.kz-list-popup .dx-overlay-content {
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r-lg);
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18);
+    background-color: #f5f5f5;
+}
+
+
+/* ---- Title bar ---- */
+/*.kz-list-popup .dx-popup-title {
+    background: var(--ap-surface);
+    border-bottom: 1px solid var(--ap-border);
+    padding: 10px 14px;
+}*/
+
+/*.kz-list-popup .dx-popup-title .dx-toolbar-label,
+.kz-list-popup .dx-popup-title .dx-item-content {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ap-heading);
+}*/
+
+/* ---- Content: let the list own the full area and do its own scrolling ----
+   The default .dx-popup-content padding leaves the carded rows floating in a
+   white gutter and breaks the list's height:100%, so drop it and go flex. */
+.kz-list-popup .dx-popup-title.dx-toolbar{
+
+}
+
+/* ---- Per-type title-bar colours so multiple open list popups are distinguishable ----
+   Add a modifier class alongside kz-list-popup (e.g. 'kz-list-popup kz-list-lpos'). */
+.kz-list-lpos      .dx-popup-title.dx-toolbar { background: #1D5A8A !important; }  /* LPOs / LPO GRNs — blue */
+.kz-list-grn       .dx-popup-title.dx-toolbar { background: #0f766e !important; }  /* GRNs      — teal   */
+.kz-list-calls     .dx-popup-title.dx-toolbar { background: #6d28d9 !important; }  /* Calls     — violet */
+.kz-list-wh        .dx-popup-title.dx-toolbar { background: rgb(71, 85, 105) !important; }  /* Warehouse — slate  */
+.kz-list-buildings .dx-popup-title.dx-toolbar { background: #4f46e5 !important; }  /* Buildings — indigo */
+.kz-list-vendors   .dx-popup-title.dx-toolbar { background: rgb(29, 90, 138) !important; }  /* Vendors — blue */
+.kz-list-svc       .dx-popup-title.dx-toolbar { background: #059669 !important; }  /* Pending Service LPOs — emerald */
+.kz-list-customer  .dx-popup-title.dx-toolbar { background: #be123c !important; }  /* Customers — crimson */
+.kz-list-hd        .dx-popup-title.dx-toolbar { background: #334155 !important; }  /* IT Help Desk tickets — slate */
+/* White title text + close (x) on the coloured bars */
+.kz-list-lpos  .dx-popup-title .dx-toolbar-label, .kz-list-lpos  .dx-popup-title .dx-item-content,
+.kz-list-grn   .dx-popup-title .dx-toolbar-label, .kz-list-grn   .dx-popup-title .dx-item-content,
+.kz-list-calls .dx-popup-title .dx-toolbar-label, .kz-list-calls .dx-popup-title .dx-item-content,
+.kz-list-wh    .dx-popup-title .dx-toolbar-label, .kz-list-wh    .dx-popup-title .dx-item-content,
+.kz-list-buildings .dx-popup-title .dx-toolbar-label, .kz-list-buildings .dx-popup-title .dx-item-content,
+.kz-list-vendors .dx-popup-title .dx-toolbar-label, .kz-list-vendors .dx-popup-title .dx-item-content,
+.kz-list-customer .dx-popup-title .dx-toolbar-label, .kz-list-customer .dx-popup-title .dx-item-content,
+.kz-list-svc .dx-popup-title .dx-toolbar-label, .kz-list-svc .dx-popup-title .dx-item-content,
+.kz-list-hd  .dx-popup-title .dx-toolbar-label, .kz-list-hd  .dx-popup-title .dx-item-content {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+.kz-list-lpos  .dx-popup-title .dx-closebutton .dx-icon,
+.kz-list-grn   .dx-popup-title .dx-closebutton .dx-icon,
+.kz-list-calls .dx-popup-title .dx-closebutton .dx-icon,
+.kz-list-wh    .dx-popup-title .dx-closebutton .dx-icon,
+.kz-list-buildings .dx-popup-title .dx-closebutton .dx-icon,
+.kz-list-vendors .dx-popup-title .dx-closebutton .dx-icon,
+.kz-list-customer .dx-popup-title .dx-closebutton .dx-icon,
+.kz-list-svc .dx-popup-title .dx-closebutton .dx-icon,
+.kz-list-hd  .dx-popup-title .dx-closebutton .dx-icon { color: #ffffff !important; }
+
+/* ---- Entity-coloured alkanziFormPopup title bars (shared) ----
+   Each entity's form reuses the colour of its listPopup, so the colour follows
+   the entity from its list into its form. The class arrives via alkanziFormPopup's
+   `toolbarColor` (helpers.js), landing on the popup's .dx-overlay-wrapper. Lives
+   here (the shared popup-chrome stylesheet) so every workspace that links
+   listPopup.css gets these — matching the kz-list-* colours above. */
+.pw-form-lpo  .dx-popup-title.dx-toolbar { background: #1D5A8A !important; }  /* inventory / unpaid LPO — blue    */
+.pw-form-svc  .dx-popup-title.dx-toolbar { background: #059669 !important; }  /* service LPO            — emerald */
+.pw-form-call .dx-popup-title.dx-toolbar { background: #6d28d9 !important; }  /* call 360               — violet  */
+.pw-form-grn  .dx-popup-title.dx-toolbar { background: #0f766e !important; }  /* GRN                    — teal    */
+.pw-form-customer .dx-popup-title.dx-toolbar { background: #be123c !important; }  /* customer          — crimson */
+.pw-form-lpo  .dx-popup-title .dx-toolbar-label,  .pw-form-lpo  .dx-popup-title .dx-item-content,
+.pw-form-svc  .dx-popup-title .dx-toolbar-label,  .pw-form-svc  .dx-popup-title .dx-item-content,
+.pw-form-call .dx-popup-title .dx-toolbar-label,  .pw-form-call .dx-popup-title .dx-item-content,
+.pw-form-customer .dx-popup-title .dx-toolbar-label,  .pw-form-customer .dx-popup-title .dx-item-content,
+.pw-form-grn  .dx-popup-title .dx-toolbar-label,  .pw-form-grn  .dx-popup-title .dx-item-content {
+    color: #ffffff !important;
+    font-weight: 700;
+}
+.pw-form-lpo  .dx-popup-title .dx-button .dx-icon,
+.pw-form-svc  .dx-popup-title .dx-button .dx-icon,
+.pw-form-call .dx-popup-title .dx-button .dx-icon,
+.pw-form-customer .dx-popup-title .dx-button .dx-icon,
+.pw-form-grn  .dx-popup-title .dx-button .dx-icon { color: #ffffff !important; }
+.kz-list-popup .dx-popup-content {
+    display: flex;
+    flex-direction: column;
+    padding: 5px 5px 5px 5px;
+    background-color: transparent !important;
+}
+/* flex-basis auto (not 1 0) so an auto-height popup still sizes to its rows;
+   with an explicit popup height the list stretches and scrolls instead. */
+.kz-list-popup .dx-popup-content > .dx-list,
+.kz-list-popup .dx-popup-content > [dx-list] {
+    flex: 1 1 auto;
+    min-height: 0;
+    background: transparent !important;
+}
+
+/* ---- Search box pinned above the rows ---- */
+.kz-list-popup .dx-list-search {
+    flex: 0 0 auto;
+    margin-bottom: 6px;
+    background: var(--ap-surface);
+    border: 1px solid var(--ap-border);
+    border-radius: var(--ap-r);
+}
+
+/* ---- Empty state ---- */
+.kz-list-popup .dx-empty-message {
+    color: var(--ap-muted);
+    font-size: 12px;
+    padding: 18px 12px;
+}
+
+/* ---- Bottom toolbar (Save / Exit) ---- */
+.kz-list-popup .dx-popup-bottom {
+    background: var(--ap-surface);
+    border-top: 1px solid var(--ap-border);
+    padding: 8px 12px;
+}
+
+/* ---- Full-screen mode: square off the corners ---- */
+.kz-list-popup.dx-popup-fullscreen,
+.kz-list-popup .dx-popup-fullscreen {
+    border-radius: 0;
+    border: 0;
+}
+
+/* ============ Respect reduced-motion ============ */
+@media (prefers-reduced-motion: reduce) {
+    .ap-activity-dx .dx-list-item,
+    .shortlist-list .dx-list-item,
+    .ap-accordion .dx-accordion-item,
+    .ap-tree-cards .dx-treeview-item,
+    .ap-activity-avatar { animation: none !important; transition: none !important; }
+}
+
+/* Hide the bottom toolbar (empty unless a listPopup opts into a Save button). */
+.kz-list-popup .dx-popup-bottom {
+    display: none;
+}
+
+/* …but re-show it for popups that carry a bottom action (e.g. "Raise BPS", or
+   a "Raise Renewal Notice" button). More specific than the hide rule above, so
+   it wins. pw-bps-popup is the procurement-specific opt-in; kz-list-hasfooter is
+   the general one any listPopup can use to keep its bottom toolbar visible. */
+.kz-list-popup.pw-bps-popup .dx-popup-bottom,
+.kz-list-popup.kz-list-hasfooter .dx-popup-bottom {
+    display: flex;
+}
+
+/* Last-clicked item — persistent background highlight (all listPopups). The
+   class is only added to listPopup lists, so .dx-list-item.pw-active-item is safe. */
+.dx-list-item.pw-active-item,
+.dx-list-item.pw-active-item > .dx-list-item-content,
+.dx-list-item.pw-active-item .shortlist-row {
+    background: rgb(96, 176, 243, 0.20) !important;
+}
+.dx-list-item.pw-active-item .shortlist-row:before { opacity: 0 !important; }
