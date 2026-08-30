@@ -12,7 +12,7 @@
    ============================================================ */
 var app = angular.module("app", ["dx"]);
 
-app.controller("_layoutCtrl", ["$scope", "$http", function ($scope, $http) {
+app.controller("_layoutCtrl", ["$scope", "$http", "WsSearchTerminal", function ($scope, $http, WsSearchTerminal) {
     "use strict";
 
     var DRAWER_KEY = "erp-drawer-opened";
@@ -128,7 +128,11 @@ app.controller("_layoutCtrl", ["$scope", "$http", function ($scope, $http) {
                 { id: "invoices", text: "Invoices", icon: "doc", path: "/Sales/Invoices" }
             ]
         },
-        { id: "settings", text: "Settings", icon: "preferences", path: "/Settings" }
+        {
+            id: "it", text: "IT", icon: "preferences", expanded: true, items: [
+                { id: "structure", text: "Organization Structure", icon: "hierarchy", path: "/It/Workspace" }
+            ]
+        }
     ];
 
     $scope.mainTree = {
@@ -201,9 +205,19 @@ app.controller("_layoutCtrl", ["$scope", "$http", function ($scope, $http) {
         ]
     };
 
+    // The shared search terminal, instantiated once for every workspace. A workspace adds
+    // its own routing through cfg rather than building a second search.
+    $scope.terminal = WsSearchTerminal({
+        onOpen: function (hit) {
+            // No workspace-specific handler claimed this hit type. Saying so beats a click
+            // that appears to do nothing.
+            DevExpress.ui.notify("Nothing is wired up yet to open a " + (hit.label || hit.entityType) + ".", "info", 3000);
+        }
+    });
+
     $scope.search = function (term) {
-        if (!term) return;
-        DevExpress.ui.notify("Search is not wired up yet: \"" + term + "\"", "info", 2000);
+        $scope.terminal.show();
+        if (term) $scope.terminal.run(term);
     };
 
     // ---------- startup ----------
@@ -230,3 +244,7 @@ app.controller("_layoutCtrl", ["$scope", "$http", function ($scope, $http) {
         if (match && $scope.mainTree.instance) $scope.mainTree.instance.selectItem(match.id);
     };
 }]);
+
+/* A page with no controller of its own still needs a registered name for the shell's
+   ng-controller, because an empty or unknown one throws and blanks the page. */
+app.controller("emptyCtrl", [function () { }]);

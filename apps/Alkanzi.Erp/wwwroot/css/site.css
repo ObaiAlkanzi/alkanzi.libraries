@@ -332,3 +332,230 @@ html, body {
 }
 
 .erp-login-error ul { margin: 0; padding-left: 16px; }
+
+/* ---------- entity identity ----------
+   One ink + one wash per record type, so the search terminal and the IT tree agree on what a
+   company or a branch looks like. Tokens, never literals, so both follow the theme. */
+:root {
+    --erp-type-org: #7c3aed;
+    --erp-type-org-tint: rgba(124, 58, 237, .12);
+    --erp-type-company: #1d5a8a;
+    --erp-type-company-tint: rgba(29, 90, 138, .12);
+    --erp-type-branch: #0f978d;
+    --erp-type-branch-tint: rgba(15, 151, 141, .12);
+    --erp-type-vendor: #475569;
+    --erp-type-vendor-tint: rgba(71, 85, 105, .12);
+    --erp-type-lpo: #1976d2;
+    --erp-type-lpo-tint: rgba(25, 118, 210, .12);
+    --erp-shading: rgba(0, 0, 0, .45);
+}
+
+:root[data-theme="dark"] {
+    /* Every ink lifts to clear 4.5:1 on a dark surface, and the washes go 12% -> 22%:
+       a tint that reads on white all but disappears against #1a2029. */
+    --erp-type-org: #a78bfa;
+    --erp-type-org-tint: rgba(167, 139, 250, .22);
+    --erp-type-company: #5aa9e6;
+    --erp-type-company-tint: rgba(90, 169, 230, .22);
+    --erp-type-branch: #2fc0b4;
+    --erp-type-branch-tint: rgba(47, 192, 180, .22);
+    --erp-type-vendor: #94a3b8;
+    --erp-type-vendor-tint: rgba(148, 163, 184, .22);
+    --erp-type-lpo: #4d9fe8;
+    --erp-type-lpo-tint: rgba(77, 159, 232, .22);
+    --erp-shading: rgba(0, 0, 0, .65);
+}
+
+/* ---------- search terminal ---------- */
+.ws-terminal-body { padding: 4px 2px; }
+
+.ws-terminal-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 6px 12px;
+    border-bottom: 1px solid var(--erp-border);
+}
+
+.ws-terminal-search > i { color: var(--erp-muted); font-size: 15px; }
+.ws-terminal-box { flex: 1 1 auto; }
+
+.ws-terminal-facets {
+    display: flex;
+    gap: 6px;
+    padding: 10px 6px;
+    flex-wrap: wrap;
+}
+
+.ws-facet {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--erp-border);
+    background: var(--erp-surface);
+    color: var(--erp-muted);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+.ws-facet.is-active {
+    background: var(--erp-primary);
+    border-color: var(--erp-primary);
+    color: var(--erp-on-primary);
+}
+
+.ws-terminal-status {
+    padding: 2px 8px 8px;
+    font-size: 12.5px;
+    color: var(--erp-muted);
+}
+
+.ws-hit {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 6px;
+}
+
+.ws-hit-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+}
+
+.ws-hit-body { flex: 1 1 auto; min-width: 0; }
+
+.ws-hit-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--erp-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ws-hit-chip {
+    padding: 1px 8px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    flex: 0 0 auto;
+}
+
+.ws-hit-sub {
+    font-size: 12.5px;
+    color: var(--erp-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ws-hit-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--erp-muted);
+}
+
+.ws-hit-doc { font-weight: 600; color: var(--erp-text); }
+
+/* ---------- IT workspace ---------- */
+.it-head-actions { display: flex; gap: 8px; align-items: center; }
+
+.it-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) 1fr;
+    gap: 14px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .it-layout { grid-template-columns: 1fr; }
+}
+
+.it-tree-pane { min-height: 320px; }
+.it-tree .dx-treeview-item { padding: 7px 8px; }
+
+.it-detail-pane { min-height: 320px; }
+
+.it-empty {
+    display: grid;
+    place-items: center;
+    gap: 10px;
+    padding: 60px 20px;
+    color: var(--erp-muted);
+    text-align: center;
+}
+
+.it-empty i { font-size: 26px; opacity: .5; }
+
+.it-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--erp-border);
+}
+
+.it-detail-icon { font-size: 22px; }
+.it-detail-title { font-size: 17px; font-weight: 700; color: var(--erp-heading); }
+.it-detail-sub { font-size: 12.5px; color: var(--erp-muted); }
+.it-detail-head .erp-chip { margin-left: auto; }
+
+.it-facts {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 6px 14px;
+    margin: 14px 0 18px;
+    font-size: 13.5px;
+}
+
+.it-facts dt { color: var(--erp-muted); }
+.it-facts dd { margin: 0; color: var(--erp-text); font-weight: 500; }
+
+.it-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.it-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid var(--erp-border);
+    background: var(--erp-surface);
+    color: var(--erp-text);
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    width: auto;
+}
+
+.it-btn:hover:not(:disabled) { background: var(--erp-inset); }
+.it-btn:disabled { opacity: .55; cursor: default; }
+.it-btn--ghost { padding: 7px 11px; }
+.it-btn--danger { color: var(--erp-danger); border-color: var(--erp-danger); }
+.it-btn--danger:hover:not(:disabled) { background: var(--erp-danger-tint); }
+
+/* The background has to be restated, not just the colour: .it-btn is defined after
+   .erp-btn-primary and both are single-class selectors, so .it-btn's surface background wins
+   on source order and leaves white label text on a white button. */
+button.erp-btn-primary.it-btn {
+    border: 0;
+    background: var(--erp-primary);
+    color: var(--erp-on-primary);
+}
+
+button.erp-btn-primary.it-btn:hover:not(:disabled) { background: var(--erp-primary-2); }
+
+.it-editor { padding: 6px 4px; }
+.it-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }

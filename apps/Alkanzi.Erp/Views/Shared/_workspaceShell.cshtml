@@ -1,0 +1,100 @@
+@*
+    Workspace shell — the layout every workspace inherits.
+
+    It owns the AngularJS host, the toolbar, the navigation drawer and the shared partials,
+    so a workspace view contributes only its own content through @@RenderBody. Adding a
+    workspace should never mean copying chrome.
+
+    The API base URL and bearer token are rendered here, once, for the erpApi client. The
+    token comes from the auth cookie, which is HttpOnly — this is the single deliberate point
+    at which it becomes readable by script, because the browser calls the API directly.
+
+    Script order is load-bearing and must not be reordered:
+      jQuery -> AngularJS -> dx.all.js -> app.js (creates the module)
+      -> ws-*.js factories -> the workspace controller, loaded by the view.
+*@
+@using System.Security.Claims
+@using Alkanzi.Erp.Controllers
+@{
+    // Pages with no controller of their own (Privacy, Error) fall back to a registered no-op.
+    // An empty ng-controller attribute, or a name nothing registered, throws an injector error
+    // and blanks the whole page rather than just that region.
+    var workspaceCtrl = ViewBag.WorkspaceCtrl as string ?? "emptyCtrl";
+    var apiBaseUrl = Context.RequestServices
+        .GetRequiredService<IConfiguration>()["Api:BaseUrl"] ?? "http://localhost:5220";
+    var apiToken = User.FindFirstValue(AccountController.ApiTokenClaim) ?? "";
+    var fullName = User.FindFirstValue("erp:full_name") ?? User.Identity?.Name ?? "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Alkanzi ERP</title>
+    <link rel="icon" href="~/favicon.ico" type="image/x-icon" />
+
+    <link href="~/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="~/css/devextreme/dx.common.css" rel="stylesheet" />
+    <link href="~/css/devextreme/dx.light.css" rel="stylesheet" />
+    <link id="dxDarkTheme" href="~/css/devextreme/dx.dark.css" rel="stylesheet" disabled />
+    <link href="~/font-awesome/css/all.min.css" rel="stylesheet" />
+    <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
+
+    <script>
+        // Before the body paints, or a dark-theme user gets a white flash while Angular boots.
+        (function () {
+            try {
+                if ((localStorage.getItem('erp-theme') || 'light') === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    var d = document.getElementById('dxDarkTheme');
+                    if (d) d.disabled = false;
+                }
+            } catch (e) { }
+        })();
+    </script>
+
+    <script>
+        window.__ERP__ = {
+            apiBaseUrl: "@Html.Raw(apiBaseUrl.TrimEnd('/'))",
+            token: "@Html.Raw(apiToken)",
+            fullName: @Html.Raw(Json.Serialize(fullName))
+        };
+    </script>
+
+    <script src="~/js/devextreme/jquery.js"></script>
+    <script src="~/angular.js/angular.min.js"></script>
+    <script src="~/js/devextreme/dx.all.js"></script>
+    <script src="~/js/app.js" asp-append-version="true"></script>
+
+    @* Shared factories register on the module app.js just created. *@
+    <script src="~/js/services/erp-api.js" asp-append-version="true"></script>
+    <script src="~/js/services/ws-search-terminal.js" asp-append-version="true"></script>
+</head>
+<body class="dx-viewport" ng-app="app" ng-controller="_layoutCtrl" ng-init="init()">
+
+    <div class="erp-shell">
+        <header class="erp-header">
+            <div dx-toolbar="mainToolbar"></div>
+        </header>
+
+        <div dx-drawer="mainDrawer" class="erp-drawer">
+            <div data-options="dxTemplate: { name: 'navigation-menu' }">
+                <div class="erp-menu">
+                    <div dx-tree-view="mainTree"></div>
+                </div>
+            </div>
+
+            <div class="erp-content" dx-scroll-view="{ direction: 'vertical', showScrollbar: 'onHover' }">
+                <main class="erp-page" ng-controller="@workspaceCtrl">
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+    </div>
+
+    @* Shared chrome every workspace inherits. *@
+    <partial name="WorkspaceForms/_SearchTerminal" />
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

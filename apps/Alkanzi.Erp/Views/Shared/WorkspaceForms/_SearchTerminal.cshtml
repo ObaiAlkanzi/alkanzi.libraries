@@ -1,0 +1,31 @@
+@*
+    Search terminal — the omni-search surface shared by every workspace.
+
+    Markup only. All behaviour, result styling and hit routing live in the WsSearchTerminal
+    factory (wwwroot/js/services/ws-search-terminal.js), which the layout controller
+    instantiates once and exposes as `terminal`. A workspace that wants its own routing passes
+    handlers through cfg rather than rebuilding any of this.
+*@
+<div dx-popup="terminal.popup" class="ws-terminal">
+    <div class="ws-terminal-body">
+
+        <div class="ws-terminal-search">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <div dx-text-box="terminal.box" class="ws-terminal-box"></div>
+        </div>
+
+        <div class="ws-terminal-facets">
+            <button type="button"
+                    class="ws-facet"
+                    ng-repeat="f in terminal.facets"
+                    ng-class="{ 'is-active': terminal.type === f.key }"
+                    ng-click="terminal.setType(f.key)">
+                <i class="{{ f.icon }}"></i><span>{{ f.label }}</span>
+            </button>
+        </div>
+
+        <div class="ws-terminal-status" ng-if="terminal.status">{{ terminal.status }}</div>
+
+        <div dx-list="terminal.list" class="ws-terminal-list"></div>
+    </div>
+</div>

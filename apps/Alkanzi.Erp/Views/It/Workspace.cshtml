@@ -1,0 +1,93 @@
+@{
+    ViewData["Title"] = "IT — Organization Structure";
+    Layout = "_workspaceShell";
+    ViewBag.WorkspaceCtrl = "itWorkspaceCtrl";
+}
+
+<div class="erp-page-head">
+    <div>
+        <h1 class="erp-page-title">Organization Structure</h1>
+        <div class="erp-page-sub">Organizations, the companies inside them, and each company's branches.</div>
+    </div>
+    <div class="it-head-actions">
+        <button type="button" class="erp-btn-primary it-btn" ng-click="add('organization', null)">
+            <i class="fa-solid fa-plus"></i><span>New Organization</span>
+        </button>
+        <button type="button" class="it-btn it-btn--ghost" ng-click="refresh()" title="Reload">
+            <i class="fa-solid fa-rotate"></i>
+        </button>
+    </div>
+</div>
+
+<div class="it-layout">
+
+    @* ---- left: the structure tree ---- *@
+    <section class="erp-card it-tree-pane">
+        <div class="erp-card-head">
+            <i class="fa-solid fa-sitemap"></i>
+            <span>Structure</span>
+        </div>
+        <div id="itTree" dx-tree-view="tree"></div>
+    </section>
+
+    @* ---- right: what is selected ---- *@
+    <section class="erp-card it-detail-pane">
+        <div ng-if="!selected" class="it-empty">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <p>Select an organization, company or branch to see its details.</p>
+        </div>
+
+        <div ng-if="selected">
+            <div class="it-detail-head">
+                <span class="it-detail-icon" ng-style="{ color: levelInk(selected.level) }">
+                    <i class="{{ levelIcon(selected.level) }}"></i>
+                </span>
+                <div>
+                    <div class="it-detail-title">{{ selected.row.name }}</div>
+                    <div class="it-detail-sub">{{ levelLabel(selected.level) }} · {{ selected.row.code }}</div>
+                </div>
+                <span class="erp-chip" ng-class="selected.row.isActive ? 'erp-chip--success' : 'erp-chip--muted'">
+                    {{ selected.row.isActive ? 'Active' : 'Inactive' }}
+                </span>
+            </div>
+
+            <dl class="it-facts">
+                <dt>Code</dt><dd>{{ selected.row.code }}</dd>
+                <dt>Name</dt><dd>{{ selected.row.name }}</dd>
+                <dt ng-if="selected.row.currency">Currency</dt>
+                <dd ng-if="selected.row.currency">{{ selected.row.currency }}</dd>
+                <dt ng-if="selected.row.companyCount !== undefined">Companies</dt>
+                <dd ng-if="selected.row.companyCount !== undefined">{{ selected.row.companyCount }}</dd>
+                <dt ng-if="selected.row.branchCount !== undefined">Branches</dt>
+                <dd ng-if="selected.row.branchCount !== undefined">{{ selected.row.branchCount }}</dd>
+            </dl>
+
+            <div class="it-detail-actions">
+                <button type="button" class="it-btn" ng-click="edit(selected)" ng-disabled="busy">
+                    <i class="fa-solid fa-pen"></i><span>Edit</span>
+                </button>
+                <button type="button" class="it-btn" ng-if="canAddChild()" ng-click="add(selected.level === 'organization' ? 'company' : 'branch', selected)" ng-disabled="busy">
+                    <i class="fa-solid fa-plus"></i><span>Add {{ childLabel() }}</span>
+                </button>
+                <button type="button" class="it-btn it-btn--danger" ng-click="remove(selected)" ng-disabled="busy">
+                    <i class="fa-solid fa-trash"></i><span>Delete</span>
+                </button>
+            </div>
+        </div>
+    </section>
+</div>
+
+@* ---- add / edit dialog ---- *@
+<div dx-popup="editorPopup">
+    <div class="it-editor">
+        <div dx-form="editorForm"></div>
+        <div class="it-editor-actions">
+            <button type="button" class="it-btn" ng-click="editorPopup.instance.hide()" ng-disabled="busy">Cancel</button>
+            <button type="button" class="erp-btn-primary it-btn" ng-click="saveEditor()" ng-disabled="busy">Save</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/pages/itWorkspace.js" asp-append-version="true"></script>
+}

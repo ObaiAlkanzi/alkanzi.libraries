@@ -11,15 +11,21 @@ namespace Alkanzi.Erp.Controllers;
 [AllowAnonymous]
 public class AccountController : Controller
 {
+    /// <summary>Claim carrying the API bearer token issued alongside the sign-in cookie.</summary>
+    public const string ApiTokenClaim = "erp:api_token";
+
     private readonly SignInManager<ApplicationUser> _signIn;
     private readonly UserManager<ApplicationUser> _users;
+    private readonly ApiTokenClient _apiTokens;
     private readonly ILogger<AccountController> _logger;
 
     public AccountController(
         SignInManager<ApplicationUser> signIn,
         UserManager<ApplicationUser> users,
+        ApiTokenClient apiTokens,
         ILogger<AccountController> logger)
     {
+        _apiTokens = apiTokens;
         _signIn = signIn;
         _users = users;
         _logger = logger;
@@ -75,12 +81,23 @@ public class AccountController : Controller
         // Company and branch are stamped into the cookie so ICurrentUser can answer without a
         // query on every request. They change rarely; a user moved between companies has to
         // sign in again for it to take effect.
-        await _signIn.SignInWithClaimsAsync(user, model.RememberMe, new[]
+        // Exchange the same credentials for an API token while they are still in hand — this
+        // is the only moment the password exists in memory, and the front end needs a bearer
+        // token to call the API directly.
+        var apiToken = await _apiTokens.RequestTokenAsync(model.Email, model.Password);
+
+        var claims = new List<Claim>
         {
-            new Claim(HttpCurrentUser.CompanyIdClaim, user.CompanyId.ToString()),
-            new Claim(HttpCurrentUser.BranchIdClaim, user.BranchId?.ToString() ?? ""),
-            new Claim("erp:full_name", user.FullName),
-        });
+            new(HttpCurrentUser.CompanyIdClaim, user.CompanyId.ToString()),
+            new(HttpCurrentUser.BranchIdClaim, user.BranchId?.ToString() ?? ""),
+            new("erp:full_name", user.FullName),
+        };
+
+        // Carried in the auth cookie, which is HttpOnly, so the token is not readable by
+        // script until the shell deliberately renders it for the API client.
+        if (apiToken is not null) claims.Add(new Claim(ApiTokenClaim, apiToken));
+
+        await _signIn.SignInWithClaimsAsync(user, model.RememberMe, claims);
 
         user.LastLoginAtUtc = DateTime.UtcNow;
         await _users.UpdateAsync(user);

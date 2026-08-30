@@ -1,8 +1,8 @@
 @{
     ViewData["Title"] = "Dashboard";
+    ViewBag.WorkspaceCtrl = "dashboardCtrl";
 }
 
-<div ng-controller="dashboardCtrl">
 
      
 
@@ -28,8 +28,6 @@
         </div>
         <div dx-data-grid="ordersGrid"></div>
     </section>
-
-</div>
 
 @section Scripts {
     <script src="~/js/pages/dashboard.js" asp-append-version="true"></script>

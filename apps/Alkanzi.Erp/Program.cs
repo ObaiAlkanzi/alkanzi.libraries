@@ -14,6 +14,17 @@ builder.Services.AddControllersWithViews(o =>
 });
 builder.Services.AddHttpContextAccessor();
 
+// The front end calls the API directly, but sign-in fetches its bearer token server-side so
+// the password is never posted to a second origin.
+var apiBaseUrl = builder.Configuration["Api:BaseUrl"] ?? "http://localhost:5220";
+builder.Services.AddHttpClient(ApiTokenClient.HttpClientName, c =>
+{
+    c.BaseAddress = new Uri(apiBaseUrl.TrimEnd('/') + "/");
+    // Short: this runs inside a sign-in, and a user should not wait on an unreachable API.
+    c.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddScoped<ApiTokenClient>();
+
 var connectionString = builder.Configuration.GetConnectionString("Postgres")
     ?? throw new InvalidOperationException("ConnectionStrings:Postgres is not configured.");
 

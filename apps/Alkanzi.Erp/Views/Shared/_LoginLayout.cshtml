@@ -2,6 +2,10 @@
     Chrome-less layout for the sign-in and access-denied screens. Deliberately does not load
     AngularJS or DevExtreme: nothing here needs them, and a login page should not wait on a
     5MB widget bundle before it can accept a password.
+
+    jQuery is the one exception, and it is not optional — unobtrusive validation is built on
+    it, so without it the asp-validation-for spans stay silent and the only feedback is a
+    round trip to the server. At ~90KB it is a different order of thing from the widget bundle.
 *@
 <!DOCTYPE html>
 <html lang="en">
@@ -23,6 +27,8 @@
 </head>
 <body class="erp-login-page">
     @RenderBody()
+
+    <script src="~/js/devextreme/jquery.js"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
