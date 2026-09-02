@@ -74,6 +74,45 @@ public sealed record UserSecurityGroup(
     string? Name);
 
 /// <summary>
+/// One workflow form a security group sits on, from
+/// <c>SM_WORKFLOW_LVL_SECURITY_GROUPS</c> joined to <c>SM_WORKFLOW_FORMS</c>.
+/// </summary>
+/// <remarks>
+/// A group can appear on several levels of the same form; those are collapsed, so
+/// each form is returned once. Use <see cref="IErpApprovalDashboardService.GetUserScopeAsync"/>
+/// when the level matters.
+/// </remarks>
+/// <param name="WorkflowId">The workflow form (<c>SM_WORKFLOW_FORMS.ID</c>) — matches a transaction's <c>WORKFLOW_ID</c>.</param>
+/// <param name="Name">The form's name, e.g. "Inventory LPO - IT".</param>
+/// <param name="SecurityGroupId">The security group the form was reached through.</param>
+public sealed record SecurityGroupWorkflow(
+    int WorkflowId,
+    string? Name,
+    int SecurityGroupId);
+
+/// <summary>
+/// One member of a security group, from <c>SM_DIVISION_SECURITY_GROUPS_USERS</c>
+/// joined to <c>AspNetUsers</c>, <c>SM_SECURITY_GROUPS_MASTER</c> and
+/// <c>FM_DIVISION</c>.
+/// </summary>
+/// <remarks>
+/// Membership is per division, so a user who belongs to the same group under
+/// several divisions is returned once per division — the rows differ by
+/// <paramref name="DivisionName" />.
+/// </remarks>
+/// <param name="UserId">The login user (<c>AspNetUsers."UserId"</c>).</param>
+/// <param name="UserName">The user's full name — first and last name joined.</param>
+/// <param name="SecurityGroupName">The group's name, or null when the master row is missing (LEFT JOIN).</param>
+/// <param name="DivisionName">The division the membership is under, or null when the division row is missing (LEFT JOIN).</param>
+/// <param name="SecurityGroupId">The security group the user was reached through.</param>
+public sealed record SecurityGroupUser(
+    int UserId,
+    string? UserName,
+    string? SecurityGroupName,
+    string? DivisionName,
+    int SecurityGroupId);
+
+/// <summary>
 /// One row of the department-employee panel returned by
 /// <c>PANEL.DEPARTMENT_EMPLOYEES</c>: <c>ID</c>, <c>USER_ID</c>,
 /// <c>DEPARTMENT_NAME</c>, <c>EMPLOYEE</c>, <c>EMP_DEPARTMENT_ID</c>,
@@ -210,6 +249,30 @@ public interface IErpApprovalDashboardService
     /// <param name="cancellationToken">Cancellation token.</param>
     Task<IReadOnlyList<UserSecurityGroup>> GetUserSecurityGroupsAsync(
         int userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The workflow forms a security group is on, from
+    /// <c>SM_WORKFLOW_LVL_SECURITY_GROUPS</c> joined to <c>SM_WORKFLOW_FORMS</c>.
+    /// A group on several levels of the same form yields that form once.
+    /// </summary>
+    /// <param name="securityGroupId">The security group (<c>SM_WORKFLOW_LVL_SECURITY_GROUPS.SECURITY_GROUP_ID</c>).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<SecurityGroupWorkflow>> GetSecurityGroupWorkflowsAsync(
+        int securityGroupId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The users in a security group, with the group and division names, from
+    /// <c>SM_DIVISION_SECURITY_GROUPS_USERS</c> joined to <c>AspNetUsers</c>,
+    /// <c>SM_SECURITY_GROUPS_MASTER</c> and <c>FM_DIVISION</c>. Deleted membership
+    /// rows and deleted users are excluded; a user in the group under several
+    /// divisions is returned once per division.
+    /// </summary>
+    /// <param name="securityGroupId">The security group (<c>SM_DIVISION_SECURITY_GROUPS_USERS.SECURITY_GROUP_ID</c>).</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    Task<IReadOnlyList<SecurityGroupUser>> GetSecurityGroupUsersAsync(
+        int securityGroupId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

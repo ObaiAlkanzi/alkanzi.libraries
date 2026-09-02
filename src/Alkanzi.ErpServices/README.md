@@ -378,6 +378,14 @@ var scope = await dashboard.GetUserScopeAsync(userId);
 // The user's security groups (id + name), collapsed to one row per group.
 var groups = await dashboard.GetUserSecurityGroupsAsync(userId);
 // groups: SecurityGroupId, Name
+
+// The workflow forms one security group sits on (one row per form).
+var workflows = await dashboard.GetSecurityGroupWorkflowsAsync(securityGroupId);
+// workflows: WorkflowId, Name, SecurityGroupId
+
+// Who is in that group — one row per (user, division).
+var members = await dashboard.GetSecurityGroupUsersAsync(securityGroupId);
+// members: UserId, UserName, SecurityGroupName, DivisionName, SecurityGroupId
 ```
 
 A user reaches a level through `SM_DIVISION_SECURITY_GROUPS_USERS` →
@@ -519,6 +527,12 @@ dotnet test tests/Alkanzi.ErpServices.OracleTests
 ```
 
 ## Version history
+
+### 4.0.7
+
+- **New `GetSecurityGroupWorkflowsAsync(securityGroupId)`** on `IErpApprovalDashboardService` — the workflow forms a security group sits on, as `SecurityGroupWorkflow(WorkflowId, Name, SecurityGroupId)` from `SM_WORKFLOW_LVL_SECURITY_GROUPS` joined to `SM_WORKFLOW_FORMS`, both `IS_DELETED = 0`. `DISTINCT`, so a group on several levels of the same form yields that form once. Use `GetUserScopeAsync` instead when the level matters.
+
+- **New `GetSecurityGroupUsersAsync(securityGroupId)`** on `IErpApprovalDashboardService` — the members of a security group, as `SecurityGroupUser(UserId, UserName, SecurityGroupName, DivisionName, SecurityGroupId)` from `SM_DIVISION_SECURITY_GROUPS_USERS` joined to `AspNetUsers` (name), `SM_SECURITY_GROUPS_MASTER` (group name) and `FM_DIVISION` (division name). Deleted membership rows and deleted users are excluded; the group and division joins are outer, so those names are null when the row is missing. Membership is **per division**, so a user in the group under two divisions is two rows.
 
 ### 4.0.5
 

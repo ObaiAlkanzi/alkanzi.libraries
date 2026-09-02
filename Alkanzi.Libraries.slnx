@@ -1,22 +1,32 @@
 <Solution>
   <Folder Name="/apps/">
-    <Project Path="apps/Alkanzi.Erp/Alkanzi.Erp.csproj" />
-    <Project Path="apps/Alkanzi.Erp.Api/Alkanzi.Erp.Api.csproj" />
+    <Project Path="apps/Alkanzi.Erp.Api/Alkanzi.Erp.Api.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="apps/Alkanzi.Erp/Alkanzi.Erp.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/Alkanzi.Erp.Domain/Alkanzi.Erp.Domain.csproj" />
-    <Project Path="src/Alkanzi.Erp.Application/Alkanzi.Erp.Application.csproj" />
-    <Project Path="src/Alkanzi.Erp.DataAccess/Alkanzi.Erp.DataAccess.csproj" />
     <Project Path="src/Alkanzi.ApprovalWorkflow/Alkanzi.ApprovalWorkflow.csproj" />
-    <Project Path="src/Alkanzi.Auditable/Alkanzi.Auditable.csproj" />
     <Project Path="src/Alkanzi.Auditable.EntityFrameworkCore/Alkanzi.Auditable.EntityFrameworkCore.csproj" />
+    <Project Path="src/Alkanzi.Auditable/Alkanzi.Auditable.csproj" />
+    <Project Path="src/Alkanzi.Erp.Application/Alkanzi.Erp.Application.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="src/Alkanzi.Erp.DataAccess/Alkanzi.Erp.DataAccess.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
+    <Project Path="src/Alkanzi.Erp.Domain/Alkanzi.Erp.Domain.csproj">
+      <Build Solution="Debug|*" Project="false" />
+    </Project>
     <Project Path="src/Alkanzi.ErpServices/Alkanzi.ErpServices.csproj" />
     <Project Path="src/Alkanzi.SearchEngine/Alkanzi.SearchEngine.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Alkanzi.ApprovalWorkflow.Tests/Alkanzi.ApprovalWorkflow.Tests.csproj" />
-    <Project Path="tests/Alkanzi.Auditable.EntityFrameworkCore.SqliteTests/Alkanzi.Auditable.EntityFrameworkCore.SqliteTests.csproj" />
     <Project Path="tests/Alkanzi.Auditable.EntityFrameworkCore.OracleTests/Alkanzi.Auditable.EntityFrameworkCore.OracleTests.csproj" />
+    <Project Path="tests/Alkanzi.Auditable.EntityFrameworkCore.SqliteTests/Alkanzi.Auditable.EntityFrameworkCore.SqliteTests.csproj" />
     <Project Path="tests/Alkanzi.ErpServices.OracleTests/Alkanzi.ErpServices.OracleTests.csproj" />
     <Project Path="tests/Alkanzi.SearchEngine.Tests/Alkanzi.SearchEngine.Tests.csproj" />
   </Folder>

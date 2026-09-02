@@ -140,6 +140,70 @@ public sealed class ErpApprovalDashboardService : IErpApprovalDashboardService
                 Str(reader, "NAME")),
             cancellationToken).ConfigureAwait(false);
 
+    // The workflow forms a security group sits on. DISTINCT because a group is
+    // commonly on several levels of the same form. The join is written LEFT but
+    // B.IS_DELETED = 0 makes it behave as an inner join — a level row pointing at a
+    // missing or deleted form is dropped, which is what we want here.
+    private const string SecurityGroupWorkflowsSql = """
+        SELECT DISTINCT
+               B.ID                AS WF_ID,
+               B.NAME              AS NAME,
+               A.SECURITY_GROUP_ID AS SECURITY_GROUP_ID
+        FROM   SM_WORKFLOW_LVL_SECURITY_GROUPS A
+               LEFT JOIN SM_WORKFLOW_FORMS B ON B.ID = A.HDR_ID
+        WHERE  A.IS_DELETED = 0
+          AND  B.IS_DELETED = 0
+          AND  A.SECURITY_GROUP_ID = :p_sg
+        """;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<SecurityGroupWorkflow>> GetSecurityGroupWorkflowsAsync(
+        int securityGroupId, CancellationToken cancellationToken = default)
+        => await QuerySqlAsync(
+            SecurityGroupWorkflowsSql,
+            command => command.Parameters.Add(new OracleParameter("p_sg", OracleDbType.Int32) { Value = securityGroupId }),
+            reader => new SecurityGroupWorkflow(
+                Int(reader, "WF_ID"),
+                Str(reader, "NAME"),
+                Int(reader, "SECURITY_GROUP_ID")),
+            cancellationToken).ConfigureAwait(false);
+
+    // The members of a security group, with the group and division names. The user
+    // join is written LEFT but B."IsDeleted" = 0 makes it behave as an inner join —
+    // a membership row pointing at a missing or deleted user is dropped. The group
+    // and division joins stay genuinely outer, so a membership whose master or
+    // division row is gone still returns with a null name. No DISTINCT: membership
+    // is per division, so a user in the group under two divisions is legitimately
+    // two rows.
+    private const string SecurityGroupUsersSql = """
+        SELECT A.USER_ID                             AS USER_ID,
+               B."First_Name" || ' ' || B."Last_Name" AS USER_NAME,
+               C.NAME                                AS SG_NAME,
+               D.NAME                                AS DIVISION_NAME,
+               A.SECURITY_GROUP_ID                   AS SECURITY_GROUP_ID
+        FROM   SM_DIVISION_SECURITY_GROUPS_USERS A
+               LEFT JOIN "AspNetUsers" B              ON B."UserId" = A.USER_ID
+               LEFT JOIN SM_SECURITY_GROUPS_MASTER C  ON C.ID = A.SECURITY_GROUP_ID
+               LEFT JOIN FM_DIVISION D                ON D.ID = A.DIVISION_ID
+        WHERE  A.IS_DELETED = 0
+          AND  B."IsDeleted" = 0
+          AND  A.SECURITY_GROUP_ID = :p_sg
+        """;
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<SecurityGroupUser>> GetSecurityGroupUsersAsync(
+        int securityGroupId, CancellationToken cancellationToken = default)
+        => await QuerySqlAsync(
+            SecurityGroupUsersSql,
+            command => command.Parameters.Add(new OracleParameter("p_sg", OracleDbType.Int32) { Value = securityGroupId }),
+            reader => new SecurityGroupUser(
+                Int(reader, "USER_ID"),
+                Str(reader, "USER_NAME")?.Trim(),
+                Str(reader, "SG_NAME"),
+                Str(reader, "DIVISION_NAME"),
+                Int(reader, "SECURITY_GROUP_ID")),
+            cancellationToken).ConfigureAwait(false);
+
     // Oracle caps an IN list at 1000 entries; stay well under it.
     private const int PairChunkSize = 250;
 
